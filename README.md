@@ -307,11 +307,11 @@ try {
 - ✅ Associations (belongsTo, hasOne, hasMany, hasManyThrough)
 - ✅ Validations (presence, length, format, numericality, uniqueness, custom, etc.)
 - ✅ Callbacks/Hooks (lifecycle hooks with conditional execution)
+- ✅ Migrations
 
 ### Planned
 
 - 📋 Eager loading (includes)
-- 📋 Migrations
 - 📋 Scopes
 - 📋 Additional database adapters (MySQL, SQLite)
 
