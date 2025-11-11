@@ -10,6 +10,7 @@ A TypeScript ORM inspired by Ruby's ActiveRecord, designed for PostgreSQL and ot
 - **Query Builder**: Fluent, chainable query interface
 - **Associations**: Support for belongsTo, hasOne, hasMany, and many-to-many relationships
 - **Validations**: Comprehensive validation system with built-in and custom validators
+- **Callbacks/Hooks**: Lifecycle hooks for running code at specific points
 - **Transactions**: Full ACID transaction support
 - **Schema Introspection**: Inspect database schema at runtime
 
@@ -229,6 +230,54 @@ await user.save({ validate: false });
 - `confirmation` - Field must match confirmation field
 - `custom` - Custom validation function
 
+### Callbacks/Hooks
+
+Run code at specific points in a model's lifecycle:
+
+```typescript
+class Article extends Model {
+  // Instance method callbacks
+  beforeSave() {
+    // Generate slug from title
+    if (!this.slug && this.title) {
+      this.slug = this.title.toLowerCase().replace(/\s+/g, '-');
+    }
+  }
+
+  afterCreate() {
+    console.log('Article created!');
+    // Send notifications, update cache, etc.
+  }
+
+  beforeDestroy() {
+    // Clean up associated records
+    return confirm('Are you sure?'); // Return false to halt
+  }
+}
+
+// Class-level callbacks
+User.beforeCreate('hashPassword');
+User.afterCreate('sendWelcomeEmail');
+
+// Conditional callbacks
+Post.afterCreate(
+  model => {
+    // Send publication notification
+  },
+  { if: model => model.status === 'published' }
+);
+```
+
+**Available Callbacks:**
+
+- `beforeValidation` / `afterValidation`
+- `beforeSave` / `afterSave`
+- `beforeCreate` / `afterCreate`
+- `beforeUpdate` / `afterUpdate`
+- `beforeDestroy` / `afterDestroy`
+
+Returning `false` from a `before*` callback halts the chain and prevents the operation.
+
 ### Transactions
 
 ```typescript
@@ -257,11 +306,11 @@ try {
 - ✅ CRUD operations
 - ✅ Associations (belongsTo, hasOne, hasMany, hasManyThrough)
 - ✅ Validations (presence, length, format, numericality, uniqueness, custom, etc.)
+- ✅ Callbacks/Hooks (lifecycle hooks with conditional execution)
 
 ### Planned
 
 - 📋 Eager loading (includes)
-- 📋 Callbacks/Hooks
 - 📋 Migrations
 - 📋 Scopes
 - 📋 Additional database adapters (MySQL, SQLite)

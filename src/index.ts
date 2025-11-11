@@ -16,5 +16,5 @@ export * from './associations';
 // Export validations
 export * from './validations';
 
-// TODO: Export other modules as they are implemented
-// export * from './callbacks';
+// Export callbacks
+export * from './callbacks';

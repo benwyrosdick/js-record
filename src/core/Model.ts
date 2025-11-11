@@ -19,6 +19,8 @@ import type {
 } from '../associations/types';
 import { Validator } from '../validations/Validator';
 import type { ValidationRules, ValidationErrors } from '../validations/types';
+import { CallbackRegistry } from '../callbacks/CallbackRegistry';
+import type { CallbackType, CallbackFunction, CallbackOptions } from '../callbacks/types';
 
 export interface ModelConfig {
   tableName?: string;
@@ -35,6 +37,9 @@ export abstract class Model {
 
   // Validation rules - override in subclasses
   static validations: ValidationRules = {};
+
+  // Callback registry (will be overridden by subclasses)
+  private static _callbacks: CallbackRegistry;
 
   // Database adapter - must be set before using models
   private static _adapter: DatabaseAdapter;
@@ -436,6 +441,90 @@ export abstract class Model {
   }
 
   /**
+   * Get or create callback registry for this class
+   */
+  private static getCallbackRegistry(): CallbackRegistry {
+    if (!this.hasOwnProperty('_callbacks')) {
+      this._callbacks = new CallbackRegistry();
+    }
+    return this._callbacks;
+  }
+
+  /**
+   * Register a callback
+   */
+  static registerCallback(
+    type: CallbackType,
+    method: string | CallbackFunction,
+    options?: CallbackOptions
+  ): void {
+    this.getCallbackRegistry().register(type, method, options);
+  }
+
+  /**
+   * Convenience methods for registering callbacks
+   */
+  static beforeValidation(method: string | CallbackFunction, options?: CallbackOptions): void {
+    this.registerCallback('beforeValidation', method, options);
+  }
+
+  static afterValidation(method: string | CallbackFunction, options?: CallbackOptions): void {
+    this.registerCallback('afterValidation', method, options);
+  }
+
+  static beforeSave(method: string | CallbackFunction, options?: CallbackOptions): void {
+    this.registerCallback('beforeSave', method, options);
+  }
+
+  static afterSave(method: string | CallbackFunction, options?: CallbackOptions): void {
+    this.registerCallback('afterSave', method, options);
+  }
+
+  static beforeCreate(method: string | CallbackFunction, options?: CallbackOptions): void {
+    this.registerCallback('beforeCreate', method, options);
+  }
+
+  static afterCreate(method: string | CallbackFunction, options?: CallbackOptions): void {
+    this.registerCallback('afterCreate', method, options);
+  }
+
+  static beforeUpdate(method: string | CallbackFunction, options?: CallbackOptions): void {
+    this.registerCallback('beforeUpdate', method, options);
+  }
+
+  static afterUpdate(method: string | CallbackFunction, options?: CallbackOptions): void {
+    this.registerCallback('afterUpdate', method, options);
+  }
+
+  static beforeDestroy(method: string | CallbackFunction, options?: CallbackOptions): void {
+    this.registerCallback('beforeDestroy', method, options);
+  }
+
+  static afterDestroy(method: string | CallbackFunction, options?: CallbackOptions): void {
+    this.registerCallback('afterDestroy', method, options);
+  }
+
+  /**
+   * Run callbacks for a specific type
+   */
+  protected async runCallbacks(type: CallbackType): Promise<boolean> {
+    // First, check if there's an instance method with this name
+    const instanceMethod = (this as any)[type];
+    if (typeof instanceMethod === 'function') {
+      const result = await instanceMethod.call(this);
+      if (result === false) {
+        return false; // Instance method halted the chain
+      }
+    }
+
+    // Then run registered callbacks
+    const ModelClass = this.modelClass as any;
+    const registry = ModelClass.getCallbackRegistry();
+    const result = await registry.run(type, this);
+    return !result.halted;
+  }
+
+  /**
    * Instantiate a model from database row
    */
   protected static instantiate<T extends Model>(this: new () => T, data: any): T {
@@ -480,16 +569,27 @@ export abstract class Model {
    * Returns true if valid, false if invalid
    */
   async validate(): Promise<boolean> {
+    // Run beforeValidation callbacks
+    const beforeResult = await this.runCallbacks('beforeValidation');
+    if (!beforeResult) {
+      return false; // Callback halted
+    }
+
     const ModelClass = this.modelClass as any;
     const validationRules = ModelClass.validations || {};
 
     if (Object.keys(validationRules).length === 0) {
-      return true; // No validations defined
+      // Run afterValidation even if no validations
+      await this.runCallbacks('afterValidation');
+      return true;
     }
 
     const validator = new Validator(this, validationRules);
     const isValid = await validator.validate();
     this._errors = validator.getErrors();
+
+    // Run afterValidation callbacks
+    await this.runCallbacks('afterValidation');
 
     return isValid;
   }
@@ -524,7 +624,7 @@ export abstract class Model {
 
   /**
    * Save the record (insert or update)
-   * Runs validations before saving
+   * Runs validations and callbacks before saving
    */
   async save(options: { validate?: boolean } = {}): Promise<boolean> {
     const shouldValidate = options.validate !== false;
@@ -536,11 +636,25 @@ export abstract class Model {
       }
     }
 
-    if (this._isNewRecord) {
-      return this.performInsert();
-    } else {
-      return this.performUpdate();
+    // Run beforeSave callbacks
+    const beforeSaveResult = await this.runCallbacks('beforeSave');
+    if (!beforeSaveResult) {
+      return false; // Callback halted
     }
+
+    let result: boolean;
+    if (this._isNewRecord) {
+      result = await this.performInsert();
+    } else {
+      result = await this.performUpdate();
+    }
+
+    if (result) {
+      // Run afterSave callbacks
+      await this.runCallbacks('afterSave');
+    }
+
+    return result;
   }
 
   /**
@@ -559,6 +673,12 @@ export abstract class Model {
       throw new Error('Cannot destroy a new record');
     }
 
+    // Run beforeDestroy callbacks
+    const beforeResult = await this.runCallbacks('beforeDestroy');
+    if (!beforeResult) {
+      return false; // Callback halted
+    }
+
     const adapter = this.modelClass.getAdapter();
     const tableName = this.modelClass.getTableName();
     const primaryKey = this.modelClass.getPrimaryKey();
@@ -567,7 +687,13 @@ export abstract class Model {
     const sql = `DELETE FROM ${adapter.escapeIdentifier(tableName)} WHERE ${adapter.escapeIdentifier(primaryKey)} = $1`;
     const result = await adapter.execute(sql, [id]);
 
-    return result.rowCount > 0;
+    if (result.rowCount > 0) {
+      // Run afterDestroy callbacks
+      await this.runCallbacks('afterDestroy');
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -641,6 +767,12 @@ export abstract class Model {
    * Perform INSERT operation
    */
   private async performInsert(): Promise<boolean> {
+    // Run beforeCreate callbacks
+    const beforeResult = await this.runCallbacks('beforeCreate');
+    if (!beforeResult) {
+      return false; // Callback halted
+    }
+
     const adapter = this.modelClass.getAdapter();
     const tableName = this.modelClass.getTableName();
     const attributes = this.getAttributesForInsert();
@@ -658,6 +790,10 @@ export abstract class Model {
       Object.assign(this, result.rows[0]);
       this._isNewRecord = false;
       this._originalAttributes = { ...result.rows[0] };
+
+      // Run afterCreate callbacks
+      await this.runCallbacks('afterCreate');
+
       return true;
     }
 
@@ -672,6 +808,12 @@ export abstract class Model {
 
     if (Object.keys(changes).length === 0) {
       return true; // Nothing to update
+    }
+
+    // Run beforeUpdate callbacks
+    const beforeResult = await this.runCallbacks('beforeUpdate');
+    if (!beforeResult) {
+      return false; // Callback halted
     }
 
     const adapter = this.modelClass.getAdapter();
@@ -699,6 +841,10 @@ export abstract class Model {
     if (result.rows.length > 0) {
       Object.assign(this, result.rows[0]);
       this._originalAttributes = { ...result.rows[0] };
+
+      // Run afterUpdate callbacks
+      await this.runCallbacks('afterUpdate');
+
       return true;
     }
 
