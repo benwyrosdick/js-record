@@ -7,8 +7,10 @@
 // Export adapters
 export * from './adapters';
 
+// Export core
+export * from './core';
+
 // TODO: Export other modules as they are implemented
-// export * from './core';
 // export * from './associations';
 // export * from './validations';
 // export * from './callbacks';
