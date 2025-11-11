@@ -8,6 +8,7 @@ A TypeScript ORM inspired by Ruby's ActiveRecord, designed for PostgreSQL and ot
 - **Type Safety**: Full TypeScript support with compile-time type checking
 - **Database Agnostic**: Adapter pattern allows support for multiple databases
 - **Query Builder**: Fluent, chainable query interface
+- **Associations**: Support for belongsTo, hasOne, hasMany, and many-to-many relationships
 - **Transactions**: Full ACID transaction support
 - **Schema Introspection**: Inspect database schema at runtime
 
@@ -31,30 +32,128 @@ const adapter = new PostgresAdapter({
   port: 5432,
   database: 'myapp_development',
   user: 'postgres',
-  password: 'password'
+  password: 'password',
 });
 
 await adapter.connect();
 ```
 
-### Using the Adapter
+### Defining Models
 
 ```typescript
-// Execute queries
-const result = await adapter.query('SELECT * FROM users WHERE active = $1', [true]);
-console.log(result.rows);
+import { Model } from 'js-record';
 
-// Execute inserts with RETURNING
-const insertResult = await adapter.execute(
-  'INSERT INTO users (name, email) VALUES ($1, $2) RETURNING id',
-  ['John Doe', 'john@example.com']
-);
+class User extends Model {
+  id!: number;
+  name!: string;
+  email!: string;
+  created_at!: Date;
+  updated_at!: Date;
+}
 
-// Inspect database schema
-const tableInfo = await adapter.getTableInfo('users');
-console.log(tableInfo.columns);
+class Post extends Model {
+  id!: number;
+  user_id!: number;
+  title!: string;
+  content!: string;
+  published!: boolean;
+  created_at!: Date;
+  updated_at!: Date;
+}
 
-// Use transactions
+// Set the database adapter for all models
+Model.setAdapter(adapter);
+```
+
+### CRUD Operations
+
+```typescript
+// Create
+const user = await User.create({
+  name: 'John Doe',
+  email: 'john@example.com',
+});
+
+// Read
+const foundUser = await User.find(1);
+const userByEmail = await User.findBy({ email: 'john@example.com' });
+const allUsers = await User.all();
+
+// Update
+user.name = 'Jane Doe';
+await user.save();
+// or
+await user.update({ name: 'Jane Doe' });
+
+// Delete
+await user.destroy();
+```
+
+### Query Builder
+
+```typescript
+// Chainable queries
+const activeUsers = await User.where({ active: true })
+  .orderBy('created_at', 'DESC')
+  .limit(10)
+  .all();
+
+// Complex queries
+const posts = await Post.where('published = ?', true)
+  .where('created_at > ?', thirtyDaysAgo)
+  .orderBy('views', 'DESC')
+  .all();
+
+// Counting
+const count = await User.where({ active: true }).count();
+
+// Existence check
+const exists = await User.where({ email: 'john@example.com' }).exists();
+```
+
+### Associations
+
+Define relationships between models:
+
+```typescript
+// One-to-many
+User.hasMany('posts', Post);
+Post.belongsTo('user', User);
+
+// One-to-one
+User.hasOne('profile', Profile);
+Profile.belongsTo('user', User);
+
+// Many-to-many
+Post.hasManyThrough('tags', Tag, {
+  through: 'post_tags',
+  foreignKey: 'post_id',
+  throughForeignKey: 'tag_id',
+});
+
+// Usage
+const user = await User.find(1);
+const posts = await user.posts.all();
+const profile = await user.profile;
+
+const post = await Post.find(1);
+const author = await post.user;
+const tags = await post.tags.all();
+
+// Create associated records
+await user.posts.create({
+  title: 'New Post',
+  content: 'Content here',
+});
+
+// Add to many-to-many
+const tag = await Tag.find(1);
+await post.tags.add(tag);
+```
+
+### Transactions
+
+```typescript
 const transaction = await adapter.beginTransaction();
 try {
   await transaction.execute('INSERT INTO users (name) VALUES ($1)', ['Alice']);
@@ -70,18 +169,19 @@ try {
 🚧 **Work in Progress** - This library is under active development.
 
 ### Completed
+
 - ✅ Base adapter interface
 - ✅ PostgreSQL adapter with connection pooling
 - ✅ Transaction support
 - ✅ Schema introspection
-
-### In Progress
-- 🔨 Query Builder
-- 🔨 Base Model class
-- 🔨 CRUD operations
+- ✅ Query Builder
+- ✅ Base Model class
+- ✅ CRUD operations
+- ✅ Associations (belongsTo, hasOne, hasMany, hasManyThrough)
 
 ### Planned
-- 📋 Associations (hasMany, belongsTo, hasOne)
+
+- 📋 Eager loading (includes)
 - 📋 Validations
 - 📋 Callbacks/Hooks
 - 📋 Migrations
@@ -126,9 +226,11 @@ src/
 ## Database Support
 
 Currently supported:
+
 - PostgreSQL
 
 Planned:
+
 - MySQL
 - SQLite
 - SQL Server

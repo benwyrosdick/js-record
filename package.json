@@ -19,6 +19,7 @@
     "test:connection": "ts-node test-connection.ts",
     "test:query-builder": "ts-node test-query-builder.ts",
     "test:model": "ts-node test-model.ts",
+    "test:associations": "ts-node test-associations.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit"

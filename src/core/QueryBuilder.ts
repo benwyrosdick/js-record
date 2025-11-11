@@ -6,7 +6,19 @@
 import { DatabaseAdapter } from '../adapters/Adapter';
 
 type WhereCondition = Record<string, any> | string;
-type WhereOperator = '=' | '!=' | '>' | '>=' | '<' | '<=' | 'LIKE' | 'ILIKE' | 'IN' | 'NOT IN' | 'IS NULL' | 'IS NOT NULL';
+type WhereOperator =
+  | '='
+  | '!='
+  | '>'
+  | '>='
+  | '<'
+  | '<='
+  | 'LIKE'
+  | 'ILIKE'
+  | 'IN'
+  | 'NOT IN'
+  | 'IS NULL'
+  | 'IS NOT NULL';
 type OrderDirection = 'ASC' | 'DESC';
 
 interface WhereClause {
@@ -84,7 +96,7 @@ export class QueryBuilder<T = any> {
           type: 'raw',
           rawSql: condition,
           rawParams: [args[0]],
-          connector: 'AND'
+          connector: 'AND',
         });
       } else if (args.length === 2) {
         // .where('email', 'LIKE', '%@example.com')
@@ -93,7 +105,7 @@ export class QueryBuilder<T = any> {
           column: condition,
           operator: args[0] as WhereOperator,
           value: args[1],
-          connector: 'AND'
+          connector: 'AND',
         });
       }
     } else {
@@ -101,7 +113,7 @@ export class QueryBuilder<T = any> {
       this.whereClauses.push({
         type: 'simple',
         condition,
-        connector: 'AND'
+        connector: 'AND',
       });
     }
     return this;
@@ -117,7 +129,7 @@ export class QueryBuilder<T = any> {
           type: 'raw',
           rawSql: condition,
           rawParams: [args[0]],
-          connector: 'OR'
+          connector: 'OR',
         });
       } else if (args.length === 2) {
         this.whereClauses.push({
@@ -125,14 +137,14 @@ export class QueryBuilder<T = any> {
           column: condition,
           operator: args[0] as WhereOperator,
           value: args[1],
-          connector: 'OR'
+          connector: 'OR',
         });
       }
     } else {
       this.whereClauses.push({
         type: 'simple',
         condition,
-        connector: 'OR'
+        connector: 'OR',
       });
     }
     return this;
@@ -147,7 +159,7 @@ export class QueryBuilder<T = any> {
       column,
       operator: 'IN',
       value: values,
-      connector: 'AND'
+      connector: 'AND',
     });
     return this;
   }
@@ -161,7 +173,7 @@ export class QueryBuilder<T = any> {
       column,
       operator: 'NOT IN',
       value: values,
-      connector: 'AND'
+      connector: 'AND',
     });
     return this;
   }
@@ -174,7 +186,7 @@ export class QueryBuilder<T = any> {
       type: 'simple',
       column,
       operator: 'IS NULL',
-      connector: 'AND'
+      connector: 'AND',
     });
     return this;
   }
@@ -187,7 +199,7 @@ export class QueryBuilder<T = any> {
       type: 'simple',
       column,
       operator: 'IS NOT NULL',
-      connector: 'AND'
+      connector: 'AND',
     });
     return this;
   }
@@ -201,7 +213,7 @@ export class QueryBuilder<T = any> {
       table,
       first,
       operator,
-      second
+      second,
     });
     return this;
   }
@@ -215,7 +227,7 @@ export class QueryBuilder<T = any> {
       table,
       first,
       operator,
-      second
+      second,
     });
     return this;
   }
@@ -229,7 +241,7 @@ export class QueryBuilder<T = any> {
       table,
       first,
       operator,
-      second
+      second,
     });
     return this;
   }
@@ -267,7 +279,7 @@ export class QueryBuilder<T = any> {
           type: 'raw',
           rawSql: condition,
           rawParams: [args[0]],
-          connector: 'AND'
+          connector: 'AND',
         });
       } else if (args.length === 2) {
         this.havingClauses.push({
@@ -275,14 +287,14 @@ export class QueryBuilder<T = any> {
           column: condition,
           operator: args[0] as WhereOperator,
           value: args[1],
-          connector: 'AND'
+          connector: 'AND',
         });
       }
     } else {
       this.havingClauses.push({
         type: 'simple',
         condition,
-        connector: 'AND'
+        connector: 'AND',
       });
     }
     return this;
@@ -363,9 +375,7 @@ export class QueryBuilder<T = any> {
 
     // ORDER BY
     if (this.orderClauses.length > 0) {
-      const orderParts = this.orderClauses.map(
-        order => `${order.column} ${order.direction}`
-      );
+      const orderParts = this.orderClauses.map(order => `${order.column} ${order.direction}`);
       sql += ` ORDER BY ${orderParts.join(', ')}`;
     }
 
@@ -383,6 +393,17 @@ export class QueryBuilder<T = any> {
   }
 
   /**
+   * Escape a column name, handling qualified names (table.column)
+   */
+  private escapeColumn(column: string): string {
+    if (column.includes('.')) {
+      const parts = column.split('.');
+      return parts.map(p => this.adapter.escapeIdentifier(p)).join('.');
+    }
+    return this.adapter.escapeIdentifier(column);
+  }
+
+  /**
    * Build WHERE clause string
    */
   private buildWhereClause(clauses: WhereClause[], params: any[]): string {
@@ -391,9 +412,9 @@ export class QueryBuilder<T = any> {
     for (let i = 0; i < clauses.length; i++) {
       const clause = clauses[i];
       if (!clause) continue;
-      
+
       const connector = i === 0 ? '' : ` ${clause.connector} `;
-      
+
       if (clause.type === 'raw' && clause.rawSql) {
         // Raw SQL with placeholders
         let sql = clause.rawSql;
@@ -410,15 +431,16 @@ export class QueryBuilder<T = any> {
           const condParts: string[] = [];
           for (const [key, value] of Object.entries(clause.condition)) {
             params.push(value);
-            condParts.push(`${this.adapter.escapeIdentifier(key)} = $${params.length}`);
+            condParts.push(`${this.escapeColumn(key)} = $${params.length}`);
           }
           parts.push(connector + condParts.join(' AND '));
         } else if (clause.column) {
           // Column operator value
+          const escapedColumn = this.escapeColumn(clause.column);
           if (clause.operator === 'IS NULL') {
-            parts.push(connector + `${this.adapter.escapeIdentifier(clause.column)} IS NULL`);
+            parts.push(connector + `${escapedColumn} IS NULL`);
           } else if (clause.operator === 'IS NOT NULL') {
-            parts.push(connector + `${this.adapter.escapeIdentifier(clause.column)} IS NOT NULL`);
+            parts.push(connector + `${escapedColumn} IS NOT NULL`);
           } else if (clause.operator === 'IN' || clause.operator === 'NOT IN') {
             const values = clause.value as any[];
             const placeholders = values.map(v => {
@@ -426,13 +448,11 @@ export class QueryBuilder<T = any> {
               return `$${params.length}`;
             });
             parts.push(
-              connector + `${this.adapter.escapeIdentifier(clause.column)} ${clause.operator} (${placeholders.join(', ')})`
+              connector + `${escapedColumn} ${clause.operator} (${placeholders.join(', ')})`
             );
           } else if (clause.operator) {
             params.push(clause.value);
-            parts.push(
-              connector + `${this.adapter.escapeIdentifier(clause.column)} ${clause.operator} $${params.length}`
-            );
+            parts.push(connector + `${escapedColumn} ${clause.operator} $${params.length}`);
           }
         }
       }
@@ -458,7 +478,7 @@ export class QueryBuilder<T = any> {
     this.limit(1);
     const { sql, params } = this.toSql();
     this.limitValue = originalLimit; // Restore original limit
-    
+
     const result = await this.adapter.query<T>(sql, params);
     return result.rows[0] || null;
   }
@@ -470,14 +490,14 @@ export class QueryBuilder<T = any> {
     // Reverse the order and get first
     const reversedOrders = this.orderClauses.map(order => ({
       column: order.column,
-      direction: (order.direction === 'ASC' ? 'DESC' : 'ASC') as OrderDirection
+      direction: (order.direction === 'ASC' ? 'DESC' : 'ASC') as OrderDirection,
     }));
-    
+
     const originalOrders = [...this.orderClauses];
     this.orderClauses = reversedOrders;
-    
+
     const result = await this.first();
-    
+
     this.orderClauses = originalOrders; // Restore original orders
     return result;
   }
@@ -490,20 +510,20 @@ export class QueryBuilder<T = any> {
     const originalLimit = this.limitValue;
     const originalOffset = this.offsetValue;
     const originalOrder = [...this.orderClauses];
-    
+
     this.select('COUNT(*) as count');
     this.limitValue = undefined;
     this.offsetValue = undefined;
     this.orderClauses = []; // Remove ORDER BY for count queries
-    
+
     const { sql, params } = this.toSql();
-    
+
     // Restore original values
     this.selectColumns = originalSelect;
     this.limitValue = originalLimit;
     this.offsetValue = originalOffset;
     this.orderClauses = originalOrder;
-    
+
     const result = await this.adapter.query<{ count: string }>(sql, params);
     return parseInt(result.rows[0]?.count || '0', 10);
   }
@@ -519,7 +539,10 @@ export class QueryBuilder<T = any> {
   /**
    * Execute query and return results with pagination info
    */
-  async paginate(page: number = 1, perPage: number = 20): Promise<{
+  async paginate(
+    page: number = 1,
+    perPage: number = 20
+  ): Promise<{
     data: T[];
     total: number;
     page: number;
@@ -528,16 +551,16 @@ export class QueryBuilder<T = any> {
   }> {
     const total = await this.count();
     const offset = (page - 1) * perPage;
-    
+
     this.limit(perPage).offset(offset);
     const data = await this.all();
-    
+
     return {
       data,
       total,
       page,
       perPage,
-      totalPages: Math.ceil(total / perPage)
+      totalPages: Math.ceil(total / perPage),
     };
   }
 

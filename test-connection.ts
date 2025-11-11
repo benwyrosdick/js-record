@@ -5,7 +5,7 @@
  *   ts-node test-connection.ts
  * 
  * Or set environment variables:
- *   PGHOST=localhost PGPORT=5432 PGDATABASE=test PGUSER=postgres PGPASSWORD=password ts-node test-connection.ts
+ *   DB_HOST=localhost DB_PORT=5432 DB_NAME=test DB_USER=postgres DB_PASSWORD=password ts-node test-connection.ts
  */
 
 import { PostgresAdapter } from './src/adapters';
@@ -15,11 +15,11 @@ async function testConnection() {
 
   // Get configuration from environment variables or use defaults
   const config = {
-    host: process.env.PGHOST || 'localhost',
-    port: parseInt(process.env.PGPORT || '5432'),
-    database: process.env.PGDATABASE || 'postgres',
-    user: process.env.PGUSER || 'postgres',
-    password: process.env.PGPASSWORD || 'postgres',
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_NAME || 'js_record_test',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'postgres',
   };
 
   console.log('📋 Configuration:');

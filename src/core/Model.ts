@@ -6,6 +6,17 @@
 import { DatabaseAdapter } from '../adapters/Adapter';
 import { QueryBuilder } from './QueryBuilder';
 import { classToTableName } from './utils';
+import { BelongsTo } from '../associations/BelongsTo';
+import { HasOne } from '../associations/HasOne';
+import { HasMany } from '../associations/HasMany';
+import { HasManyThrough } from '../associations/HasManyThrough';
+import type {
+  BelongsToOptions,
+  HasOneOptions,
+  HasManyOptions,
+  HasManyThroughOptions,
+  AssociationDefinition,
+} from '../associations/types';
 
 export interface ModelConfig {
   tableName?: string;
@@ -23,9 +34,15 @@ export abstract class Model {
   // Database adapter - must be set before using models
   private static _adapter: DatabaseAdapter;
 
+  // Association registry
+  private static _associations: Map<string, AssociationDefinition> = new Map();
+
   // Track if this is a new record or existing
   private _isNewRecord: boolean = true;
   private _originalAttributes: Record<string, any> = {};
+
+  // Loaded associations cache
+  private _loadedAssociations: Map<string, any> = new Map();
 
   /**
    * Set the database adapter for all models
@@ -76,10 +93,7 @@ export abstract class Model {
   /**
    * Find a record by primary key
    */
-  static async find<T extends Model>(
-    this: new () => T,
-    id: number | string
-  ): Promise<T | null> {
+  static async find<T extends Model>(this: new () => T, id: number | string): Promise<T | null> {
     const ModelClass = this as any;
     const primaryKey = ModelClass.getPrimaryKey();
     const result = await ModelClass.query()
@@ -96,10 +110,7 @@ export abstract class Model {
   /**
    * Find a record by conditions or throw error
    */
-  static async findOrFail<T extends Model>(
-    this: new () => T,
-    id: number | string
-  ): Promise<T> {
+  static async findOrFail<T extends Model>(this: new () => T, id: number | string): Promise<T> {
     const ModelClass = this as any;
     const result = await ModelClass.find(id);
     if (!result) {
@@ -116,9 +127,7 @@ export abstract class Model {
     conditions: Record<string, any>
   ): Promise<T | null> {
     const ModelClass = this as any;
-    const result = await ModelClass.query()
-      .where(conditions)
-      .first();
+    const result = await ModelClass.query().where(conditions).first();
 
     if (!result) {
       return null;
@@ -193,10 +202,7 @@ export abstract class Model {
   /**
    * Create a new record
    */
-  static async create<T extends Model>(
-    this: new () => T,
-    attributes: Partial<T>
-  ): Promise<T> {
+  static async create<T extends Model>(this: new () => T, attributes: Partial<T>): Promise<T> {
     const instance = new this();
     Object.assign(instance, attributes);
     await instance.save();
@@ -221,10 +227,7 @@ export abstract class Model {
   /**
    * Delete a record by ID
    */
-  static async destroy<T extends Model>(
-    this: new () => T,
-    id: number | string
-  ): Promise<boolean> {
+  static async destroy<T extends Model>(this: new () => T, id: number | string): Promise<boolean> {
     const ModelClass = this as any;
     const adapter = ModelClass.getAdapter();
     const tableName = ModelClass.getTableName();
@@ -266,6 +269,162 @@ export abstract class Model {
   static limit<T extends Model>(this: new () => T, value: number): QueryBuilder<T> {
     const ModelClass = this as any;
     return ModelClass.query().limit(value);
+  }
+
+  /**
+   * Define a belongsTo association
+   */
+  static belongsTo(
+    this: typeof Model,
+    name: string,
+    target: typeof Model | (() => typeof Model),
+    options: BelongsToOptions = {}
+  ): void {
+    const association = new BelongsTo(this, name, target, options);
+    this._associations.set(name, {
+      name,
+      type: 'belongsTo',
+      target,
+      options,
+    });
+
+    // Define getter on prototype
+    Object.defineProperty(this.prototype, name, {
+      get: function (this: Model) {
+        // Check if already loaded
+        if (this._loadedAssociations.has(name)) {
+          return this._loadedAssociations.get(name);
+        }
+        // Return a promise that can be awaited
+        return association.get(this);
+      },
+      configurable: true,
+      enumerable: false,
+    });
+  }
+
+  /**
+   * Define a hasOne association
+   */
+  static hasOne(
+    this: typeof Model,
+    name: string,
+    target: typeof Model | (() => typeof Model),
+    options: HasOneOptions = {}
+  ): void {
+    const association = new HasOne(this, name, target, options);
+    this._associations.set(name, {
+      name,
+      type: 'hasOne',
+      target,
+      options,
+    });
+
+    // Define getter on prototype
+    Object.defineProperty(this.prototype, name, {
+      get: function (this: Model) {
+        if (this._loadedAssociations.has(name)) {
+          return this._loadedAssociations.get(name);
+        }
+        return association.get(this);
+      },
+      configurable: true,
+      enumerable: false,
+    });
+  }
+
+  /**
+   * Define a hasMany association
+   */
+  static hasMany(
+    this: typeof Model,
+    name: string,
+    target: typeof Model | (() => typeof Model),
+    options: HasManyOptions = {}
+  ): void {
+    const association = new HasMany(this, name, target, options);
+    this._associations.set(name, {
+      name,
+      type: 'hasMany',
+      target,
+      options,
+    });
+
+    // Define getter on prototype that returns association helpers
+    Object.defineProperty(this.prototype, name, {
+      get: function (this: Model) {
+        if (this._loadedAssociations.has(name)) {
+          return this._loadedAssociations.get(name);
+        }
+        // Return an object with association methods
+        return {
+          all: () => association.all(this),
+          first: () => association.first(this),
+          last: () => association.last(this),
+          count: () => association.count(this),
+          exists: () => association.exists(this),
+          find: (conditions: Record<string, any>) => association.find(this, conditions),
+          create: (attributes: Record<string, any>) => association.create(this, attributes),
+          build: (attributes: Record<string, any>) => association.build(this, attributes),
+          add: (...instances: Model[]) => association.add(this, ...instances),
+          remove: (...instances: Model[]) => association.remove(this, ...instances),
+          destroyAll: () => association.destroyAll(this),
+          clear: () => association.clear(this),
+          query: () => association.query(this),
+        };
+      },
+      configurable: true,
+      enumerable: false,
+    });
+  }
+
+  /**
+   * Define a hasManyThrough association (many-to-many)
+   */
+  static hasManyThrough(
+    this: typeof Model,
+    name: string,
+    target: typeof Model | (() => typeof Model),
+    options: HasManyThroughOptions
+  ): void {
+    const association = new HasManyThrough(this, name, target, options);
+    this._associations.set(name, {
+      name,
+      type: 'hasManyThrough',
+      target,
+      options,
+    });
+
+    // Define getter on prototype that returns association helpers
+    Object.defineProperty(this.prototype, name, {
+      get: function (this: Model) {
+        if (this._loadedAssociations.has(name)) {
+          return this._loadedAssociations.get(name);
+        }
+        // Return an object with association methods
+        return {
+          all: () => association.all(this),
+          first: () => association.first(this),
+          last: () => association.last(this),
+          count: () => association.count(this),
+          exists: () => association.exists(this),
+          create: (attributes: Record<string, any>) => association.create(this, attributes),
+          add: (...instances: Model[]) => association.add(this, ...instances),
+          remove: (...instances: Model[]) => association.remove(this, ...instances),
+          clear: () => association.clear(this),
+          query: () => association.query(this),
+        };
+      },
+      configurable: true,
+      enumerable: false,
+    });
+  }
+
+  /**
+   * Get all defined associations
+   */
+  static getAssociations(): Map<string, AssociationDefinition> {
+    return this._associations;
   }
 
   /**
@@ -373,7 +532,7 @@ export abstract class Model {
    */
   getChanges(): Record<string, any> {
     const changes: Record<string, any> = {};
-    
+
     for (const key in this) {
       if (key.startsWith('_') || typeof (this as any)[key] === 'function') {
         continue;
@@ -445,7 +604,7 @@ export abstract class Model {
    */
   private async performUpdate(): Promise<boolean> {
     const changes = this.getChanges();
-    
+
     if (Object.keys(changes).length === 0) {
       return true; // Nothing to update
     }
@@ -463,7 +622,9 @@ export abstract class Model {
 
     const columns = Object.keys(changes);
     const values = Object.values(changes);
-    const setClause = columns.map((col, i) => `${adapter.escapeIdentifier(col)} = $${i + 1}`).join(', ');
+    const setClause = columns
+      .map((col, i) => `${adapter.escapeIdentifier(col)} = $${i + 1}`)
+      .join(', ');
 
     values.push(id);
     const sql = `UPDATE ${adapter.escapeIdentifier(tableName)} SET ${setClause} WHERE ${adapter.escapeIdentifier(primaryKey)} = $${values.length} RETURNING *`;
