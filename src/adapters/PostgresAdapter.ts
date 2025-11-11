@@ -222,7 +222,7 @@ export class PostgresAdapter extends DatabaseAdapter {
 
     return result.rows.map(row => ({
       name: row.index_name,
-      columns: row.column_names,
+      columns: this.parsePostgresArray(row.column_names),
       unique: row.is_unique,
       primary: row.is_primary
     }));
@@ -385,6 +385,28 @@ export class PostgresAdapter extends DatabaseAdapter {
     };
 
     return typeMap[dataTypeID] || 'unknown';
+  }
+
+  /**
+   * Parse PostgreSQL array string format {item1,item2} to JavaScript array
+   */
+  private parsePostgresArray(value: any): string[] {
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      // PostgreSQL returns arrays as {item1,item2,item3}
+      const trimmed = value.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        const content = trimmed.slice(1, -1);
+        if (content === '') {
+          return [];
+        }
+        return content.split(',').map(item => item.trim());
+      }
+      return [value];
+    }
+    return [];
   }
 }
 
