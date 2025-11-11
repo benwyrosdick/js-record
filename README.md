@@ -9,6 +9,7 @@ A TypeScript ORM inspired by Ruby's ActiveRecord, designed for PostgreSQL and ot
 - **Database Agnostic**: Adapter pattern allows support for multiple databases
 - **Query Builder**: Fluent, chainable query interface
 - **Associations**: Support for belongsTo, hasOne, hasMany, and many-to-many relationships
+- **Validations**: Comprehensive validation system with built-in and custom validators
 - **Transactions**: Full ACID transaction support
 - **Schema Introspection**: Inspect database schema at runtime
 
@@ -151,6 +152,83 @@ const tag = await Tag.find(1);
 await post.tags.add(tag);
 ```
 
+### Validations
+
+Define validation rules to ensure data integrity:
+
+```typescript
+class User extends Model {
+  static validations = {
+    name: {
+      presence: true,
+      length: { min: 2, max: 100 },
+    },
+    email: {
+      presence: true,
+      format: {
+        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        message: 'must be a valid email address',
+      },
+      uniqueness: true,
+    },
+    age: {
+      numericality: {
+        onlyInteger: true,
+        greaterThanOrEqualTo: 0,
+        lessThanOrEqualTo: 150,
+      },
+    },
+    username: {
+      presence: true,
+      length: { min: 3, max: 20 },
+      uniqueness: { caseSensitive: false },
+    },
+    password: {
+      length: { min: 8 },
+      confirmation: true, // Requires password_confirmation field
+    },
+    status: {
+      inclusion: {
+        in: ['active', 'inactive', 'pending'],
+      },
+    },
+    website: {
+      format: {
+        pattern: /^https?:\/\/.+/,
+        message: 'must be a valid URL',
+      },
+    },
+  };
+}
+
+// Usage
+const user = new User();
+user.name = 'John';
+user.email = 'invalid-email';
+
+const isValid = await user.validate();
+console.log(isValid); // false
+console.log(user.errors); // { email: ['must be a valid email address'] }
+
+// save() automatically validates
+const saved = await user.save(); // false (validation failed)
+
+// Skip validation if needed
+await user.save({ validate: false });
+```
+
+**Available Validations:**
+
+- `presence` - Requires value to be present
+- `length` - Min/max/exact length for strings and arrays
+- `format` - Regex pattern matching
+- `numericality` - Number validation with constraints
+- `uniqueness` - Database uniqueness check
+- `inclusion` - Value must be in list
+- `exclusion` - Value must not be in list
+- `confirmation` - Field must match confirmation field
+- `custom` - Custom validation function
+
 ### Transactions
 
 ```typescript
@@ -178,11 +256,11 @@ try {
 - ✅ Base Model class
 - ✅ CRUD operations
 - ✅ Associations (belongsTo, hasOne, hasMany, hasManyThrough)
+- ✅ Validations (presence, length, format, numericality, uniqueness, custom, etc.)
 
 ### Planned
 
 - 📋 Eager loading (includes)
-- 📋 Validations
 - 📋 Callbacks/Hooks
 - 📋 Migrations
 - 📋 Scopes

@@ -20,6 +20,7 @@
     "test:query-builder": "ts-node test-query-builder.ts",
     "test:model": "ts-node test-model.ts",
     "test:associations": "ts-node test-associations.ts",
+    "test:validations": "ts-node test-validations.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit"

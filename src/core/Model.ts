@@ -17,6 +17,8 @@ import type {
   HasManyThroughOptions,
   AssociationDefinition,
 } from '../associations/types';
+import { Validator } from '../validations/Validator';
+import type { ValidationRules, ValidationErrors } from '../validations/types';
 
 export interface ModelConfig {
   tableName?: string;
@@ -31,6 +33,9 @@ export abstract class Model {
     timestamps: true,
   };
 
+  // Validation rules - override in subclasses
+  static validations: ValidationRules = {};
+
   // Database adapter - must be set before using models
   private static _adapter: DatabaseAdapter;
 
@@ -43,6 +48,9 @@ export abstract class Model {
 
   // Loaded associations cache
   private _loadedAssociations: Map<string, any> = new Map();
+
+  // Validation errors
+  private _errors: ValidationErrors = {};
 
   /**
    * Set the database adapter for all models
@@ -468,9 +476,66 @@ export abstract class Model {
   }
 
   /**
-   * Save the record (insert or update)
+   * Validate the model
+   * Returns true if valid, false if invalid
    */
-  async save(): Promise<boolean> {
+  async validate(): Promise<boolean> {
+    const ModelClass = this.modelClass as any;
+    const validationRules = ModelClass.validations || {};
+
+    if (Object.keys(validationRules).length === 0) {
+      return true; // No validations defined
+    }
+
+    const validator = new Validator(this, validationRules);
+    const isValid = await validator.validate();
+    this._errors = validator.getErrors();
+
+    return isValid;
+  }
+
+  /**
+   * Check if the model is valid without running validations
+   */
+  isValid(): boolean {
+    return Object.keys(this._errors).length === 0;
+  }
+
+  /**
+   * Get validation errors
+   */
+  get errors(): ValidationErrors {
+    return this._errors;
+  }
+
+  /**
+   * Get errors for a specific field
+   */
+  getFieldErrors(field: string): string[] {
+    return this._errors[field] || [];
+  }
+
+  /**
+   * Clear all validation errors
+   */
+  clearErrors(): void {
+    this._errors = {};
+  }
+
+  /**
+   * Save the record (insert or update)
+   * Runs validations before saving
+   */
+  async save(options: { validate?: boolean } = {}): Promise<boolean> {
+    const shouldValidate = options.validate !== false;
+
+    if (shouldValidate) {
+      const isValid = await this.validate();
+      if (!isValid) {
+        return false;
+      }
+    }
+
     if (this._isNewRecord) {
       return this.performInsert();
     } else {
@@ -654,6 +719,11 @@ export abstract class Model {
 
       // Skip primary key if it's null/undefined (auto-increment)
       if (key === primaryKey && ((this as any)[key] === null || (this as any)[key] === undefined)) {
+        continue;
+      }
+
+      // Skip confirmation fields (virtual attributes)
+      if (key.endsWith('_confirmation')) {
         continue;
       }
 
