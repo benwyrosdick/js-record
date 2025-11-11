@@ -18,3 +18,6 @@ export * from './validations';
 
 // Export callbacks
 export * from './callbacks';
+
+// Export migrations
+export * from './migrations';
