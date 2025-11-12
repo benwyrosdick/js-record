@@ -1,7 +1,7 @@
 {
   "name": "js-record",
   "version": "0.1.0",
-  "description": "A TypeScript ORM inspired by ActiveRecord for PostgreSQL, SQLite, and other databases running on Bun",
+  "description": "A TypeScript ORM inspired by ActiveRecord for PostgreSQL, SQLite, and (TODO: MySQL) running on Bun",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
