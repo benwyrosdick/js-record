@@ -1,6 +1,6 @@
 # js-record
 
-A TypeScript ORM inspired by Ruby's ActiveRecord, designed for PostgreSQL and other databases.
+A TypeScript ORM, inspired by Ruby's ActiveRecord, designed for PostgreSQL, MySQL, and sqlite running on bun.
 
 ## Features
 
@@ -17,9 +17,8 @@ A TypeScript ORM inspired by Ruby's ActiveRecord, designed for PostgreSQL and ot
 ## Installation
 
 ```bash
-npm install js-record pg
-# or
-yarn add js-record pg
+# using bun
+bun add js-record
 ```
 
 ## Quick Start
@@ -319,22 +318,22 @@ try {
 
 ```bash
 # Install dependencies
-npm install
+bun install
 
 # Build the project
-npm run build
+bun run build
 
 # Watch mode for development
-npm run build:watch
+bun run build:watch
 
 # Type checking
-npm run typecheck
+bun run typecheck
 
 # Linting
-npm run lint
+bun run lint
 
 # Format code
-npm run format
+bun run format
 ```
 
 ## Architecture

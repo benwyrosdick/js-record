@@ -10,7 +10,7 @@ import {
   Transaction,
   TableInfo,
   ColumnInfo,
-  PreparedStatement
+  PreparedStatement,
 } from './types';
 
 export abstract class DatabaseAdapter {

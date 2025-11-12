@@ -19,7 +19,7 @@ You need a running PostgreSQL database. You can:
 The test script uses default values (localhost:5432, postgres/postgres) if no environment variables are set:
 
 ```bash
-npm run test:connection
+bun run test:connection
 ```
 
 ### Option 2: Using Environment Variables
@@ -32,7 +32,7 @@ DB_PORT=5432 \
 DB_NAME=mydb \
 DB_USER=myuser \
 DB_PASSWORD=mypassword \
-npm run test:connection
+bun run test:connection
 ```
 
 ### Option 3: Using a .env File
@@ -56,7 +56,7 @@ npm run test:connection
 3. Install dotenv:
 
    ```bash
-   npm install --save-dev dotenv
+   bun install --save-dev dotenv
    ```
 
 4. Run with dotenv:
@@ -152,7 +152,7 @@ docker run --name postgres-test \
 sleep 3
 
 # Run the test
-npm run test:connection
+bun run test:connection
 
 # Stop and remove container when done
 docker stop postgres-test
@@ -220,7 +220,7 @@ CREATE TABLE post_tags (
 ### Running Association Tests
 
 ```bash
-npm run test:associations
+bun run test:associations
 ```
 
 Or with custom database credentials:

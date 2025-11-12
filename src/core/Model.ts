@@ -444,7 +444,7 @@ export abstract class Model {
    * Get or create callback registry for this class
    */
   private static getCallbackRegistry(): CallbackRegistry {
-    if (!this.hasOwnProperty('_callbacks')) {
+    if (!Object.prototype.hasOwnProperty.call(this, '_callbacks')) {
       this._callbacks = new CallbackRegistry();
     }
     return this._callbacks;

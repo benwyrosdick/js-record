@@ -92,7 +92,7 @@ export enum ColumnType {
   JSONB = 'jsonb',
   UUID = 'uuid',
   ARRAY = 'array',
-  BYTEA = 'bytea'
+  BYTEA = 'bytea',
 }
 
 // Parameterized query support

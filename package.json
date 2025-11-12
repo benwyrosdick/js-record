@@ -13,16 +13,16 @@
     "build": "tsc",
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run build",
+    "prepublishOnly": "bun run clean && bun run build",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:connection": "ts-node test-connection.ts",
-    "test:query-builder": "ts-node test-query-builder.ts",
-    "test:model": "ts-node test-model.ts",
-    "test:associations": "ts-node test-associations.ts",
-    "test:validations": "ts-node test-validations.ts",
-    "test:callbacks": "ts-node test-callbacks.ts",
-    "test:migrations": "ts-node test-migrations.ts",
+    "test:connection": "bun run test-connection.ts",
+    "test:query-builder": "bun run test-query-builder.ts",
+    "test:model": "bun run test-model.ts",
+    "test:associations": "bun run test-associations.ts",
+    "test:validations": "bun run test-validations.ts",
+    "test:callbacks": "bun run test-callbacks.ts",
+    "test:migrations": "bun run test-migrations.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit"
@@ -51,12 +51,11 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "pg": "^8.11.3",
     "tslib": "^2.8.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "@types/pg": "^8.10.9",
+    "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
     "eslint": "^8.54.0",

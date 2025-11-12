@@ -3,5 +3,6 @@
  */
 
 export { QueryBuilder } from './QueryBuilder';
-export { Model, ModelConfig } from './Model';
+export { Model } from './Model';
+export type { ModelConfig } from './Model';
 export * from './utils';
