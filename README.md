@@ -337,6 +337,29 @@ try {
 
 ## Development
 
+This project uses [Just](https://github.com/casey/just) as a command runner for common tasks.
+
+### Quick Start
+
+```bash
+# Install Just (if not already installed)
+# macOS: brew install just
+# Linux: curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+
+# List all available commands
+just --list
+
+# Common commands
+just install      # Install dependencies
+just build        # Build the project
+just test         # Run all tests
+just quick-test   # Run fast SQLite tests
+just check        # Type check, lint, and format check
+just dev          # Clean, build, and test
+```
+
+### Using npm/bun scripts (alternative)
+
 ```bash
 # Install dependencies
 bun install
@@ -355,7 +378,12 @@ bun run lint
 
 # Format code
 bun run format
+
+# Run tests
+bun run test:sqlite
 ```
+
+See [docs/JUSTFILE.md](docs/JUSTFILE.md) for complete Justfile documentation.
 
 ## Architecture
 
