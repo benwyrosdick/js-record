@@ -230,11 +230,17 @@ export class SqliteAdapter extends DatabaseAdapter {
   }
 
   /**
-   * SQLite uses ? placeholders (no conversion needed)
+   * Convert PostgreSQL-style $1, $2 placeholders to SQLite-style ? placeholders
    */
   convertPlaceholders(sql: string, params: any[]): PreparedStatement {
+    let placeholderCount = 0;
+    const convertedSql = sql.replace(/\$\d+/g, () => {
+      placeholderCount++;
+      return '?';
+    });
+
     return {
-      sql,
+      sql: convertedSql,
       params,
     };
   }

@@ -19,8 +19,8 @@ class Product extends Model {
   category!: string;
   price!: number;
   stock!: number;
-  is_active!: boolean;
-  created_at?: Date;
+  isActive!: boolean;
+  createdAt?: Date;
 }
 
 // Create table
@@ -45,11 +45,11 @@ console.log('Example 1: Basic Named Scopes\n');
 
 // Define simple scopes
 Product.scope('active', query => {
-  return query.where({ is_active: 1 });
+  return query.where({ isActive: 1 });
 });
 
 Product.scope('inactive', query => {
-  return query.where({ is_active: 0 });
+  return query.where({ isActive: 0 });
 });
 
 Product.scope('inStock', query => {
@@ -91,18 +91,18 @@ console.log('Example 3: Complex Scopes\n');
 
 // Scope combining multiple conditions
 Product.scope('featured', query => {
-  return query.where({ is_active: 1 }).where('stock > ?', 0).orderBy('created_at', 'DESC').limit(5);
+  return query.where({ isActive: 1 }).where('stock > ?', 0).orderBy('createdAt', 'DESC').limit(5);
 });
 
 // Scope with sorting
 Product.scope('popular', query => {
-  return query.where({ is_active: 1 }).orderBy('price', 'DESC');
+  return query.where({ isActive: 1 }).orderBy('price', 'DESC');
 });
 
 // Scope for deals
 Product.scope('deals', query => {
   return query
-    .where({ is_active: 1 })
+    .where({ isActive: 1 })
     .where('price < ?', 50)
     .where('stock > ?', 0)
     .orderBy('price', 'ASC');
@@ -116,20 +116,20 @@ console.log('✅ Complex scopes defined\n');
 console.log('Example 4: Inserting Test Data\n');
 
 const products = [
-  { name: 'Laptop', category: 'electronics', price: 999, stock: 15, is_active: 1 },
-  { name: 'Mouse', category: 'electronics', price: 25, stock: 50, is_active: 1 },
-  { name: 'Keyboard', category: 'electronics', price: 75, stock: 0, is_active: 1 },
-  { name: 'T-Shirt', category: 'clothing', price: 20, stock: 100, is_active: 1 },
-  { name: 'Jeans', category: 'clothing', price: 60, stock: 30, is_active: 1 },
-  { name: 'Old Phone', category: 'electronics', price: 200, stock: 5, is_active: 0 },
-  { name: 'Headphones', category: 'electronics', price: 150, stock: 8, is_active: 1 },
-  { name: 'Shoes', category: 'clothing', price: 80, stock: 0, is_active: 1 },
+  { name: 'Laptop', category: 'electronics', price: 999, stock: 15, isActive: 1 },
+  { name: 'Mouse', category: 'electronics', price: 25, stock: 50, isActive: 1 },
+  { name: 'Keyboard', category: 'electronics', price: 75, stock: 0, isActive: 1 },
+  { name: 'T-Shirt', category: 'clothing', price: 20, stock: 100, isActive: 1 },
+  { name: 'Jeans', category: 'clothing', price: 60, stock: 30, isActive: 1 },
+  { name: 'Old Phone', category: 'electronics', price: 200, stock: 5, isActive: 0 },
+  { name: 'Headphones', category: 'electronics', price: 150, stock: 8, isActive: 1 },
+  { name: 'Shoes', category: 'clothing', price: 80, stock: 0, isActive: 1 },
 ];
 
 for (const product of products) {
   await adapter.execute(
     'INSERT INTO products (name, category, price, stock, is_active) VALUES (?, ?, ?, ?, ?)',
-    [product.name, product.category, product.price, product.stock, product.is_active]
+    [product.name, product.category, product.price, product.stock, product.isActive]
   );
 }
 

@@ -66,51 +66,57 @@ test:
     @just test-migrations
     @just test-sqlite
     @just test-scopes
+    @just test-attribute-mapping
 
 # Test database connection
 test-connection:
     @echo "🔌 Testing database connection..."
-    bun run test:connection
+    bun run test-connection.ts
 
 # Test query builder
 test-query-builder:
     @echo "🔍 Testing query builder..."
-    bun run test:query-builder
+    bun run test-query-builder.ts
 
 # Test model functionality
 test-model:
     @echo "📦 Testing model..."
-    bun run test:model
+    bun run test-model.ts
 
 # Test associations
 test-associations:
     @echo "🔗 Testing associations..."
-    bun run test:associations
+    bun run test-associations.ts
 
 # Test validations
 test-validations:
     @echo "✅ Testing validations..."
-    bun run test:validations
+    bun run test-validations.ts
 
 # Test callbacks
 test-callbacks:
     @echo "🪝 Testing callbacks..."
-    bun run test:callbacks
+    bun run test-callbacks.ts
 
 # Test migrations
 test-migrations:
     @echo "🔄 Testing migrations..."
-    bun run test:migrations
+    bun run test-migrations.ts
 
 # Test SQLite adapter
 test-sqlite:
     @echo "💾 Testing SQLite adapter..."
-    bun run test:sqlite
+    bun run test-sqlite.ts
 
 # Test scopes
 test-scopes:
     @echo "🎯 Testing scopes..."
-    bun run test:scopes
+    bun run test-scopes.ts
+
+# Test attribute mapping
+test-attribute-mapping:
+    @echo "🔍 Testing attribute mapping..."
+    bun run test-attribute-mapping.ts
 
 # Run specific test file
 test-file FILE:

@@ -25,13 +25,13 @@ class User extends Model {
   age?: number;
   username!: string;
   password?: string;
-  password_confirmation?: string;
+  passwordConfirmation?: string;
   status?: string;
   website?: string;
   score?: number;
   role?: string;
-  created_at!: Date;
-  updated_at!: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 
   // Define validation rules
   static validations = {
@@ -111,9 +111,9 @@ class Product extends Model {
   id!: number;
   name!: string;
   price!: number;
-  discount_price?: number;
-  created_at!: Date;
-  updated_at!: Date;
+  discountPrice?: number;
+  createdAt!: Date;
+  updatedAt!: Date;
 
   static validations = {
     name: {
@@ -125,8 +125,8 @@ class Product extends Model {
         greaterThan: 0,
       },
     },
-    discount_price: {
-      // Custom validation: discount_price must be less than price
+    discountPrice: {
+      // Custom validation: discountPrice must be less than price
       custom: {
         validator: async (value: any, model: Model) => {
           const product = model as Product;
@@ -173,7 +173,7 @@ async function demonstrateValidations() {
     user3.username = 'jane';
     user3.email = 'jane@example.com';
     user3.password = 'password123';
-    user3.password_confirmation = 'different';
+    user3.passwordConfirmation = 'different';
     const isValid3 = await user3.validate();
     console.log('Valid:', isValid3);
     console.log('Errors:', user3.errors);
@@ -191,7 +191,7 @@ async function demonstrateValidations() {
     user4.score = 100;
     user4.role = 'user';
     user4.password = 'securepassword';
-    user4.password_confirmation = 'securepassword';
+    user4.passwordConfirmation = 'securepassword';
 
     const isValid4 = await user4.validate();
     console.log('Valid:', isValid4);
@@ -220,7 +220,7 @@ async function demonstrateValidations() {
     const product1 = new Product();
     product1.name = 'Widget';
     product1.price = 100;
-    product1.discount_price = 150; // Invalid: greater than price
+    product1.discountPrice = 150; // Invalid: greater than price
 
     const isValidProduct1 = await product1.validate();
     console.log('Valid:', isValidProduct1);
@@ -232,7 +232,7 @@ async function demonstrateValidations() {
     const product2 = new Product();
     product2.name = 'Gadget';
     product2.price = 100;
-    product2.discount_price = 80;
+    product2.discountPrice = 80;
 
     const isValidProduct2 = await product2.validate();
     console.log('Valid:', isValidProduct2);

@@ -5,7 +5,7 @@
 
 import { DatabaseAdapter } from '../adapters/Adapter';
 import { QueryBuilder } from './QueryBuilder';
-import { classToTableName } from './utils';
+import { classToTableName, toSnakeCase, toCamelCase } from './utils';
 import { BelongsTo } from '../associations/BelongsTo';
 import { HasOne } from '../associations/HasOne';
 import { HasMany } from '../associations/HasMany';
@@ -32,6 +32,7 @@ export interface ModelConfig {
   tableName?: string;
   primaryKey?: string;
   timestamps?: boolean;
+  mapAttributes?: boolean; // Enable camelCase <-> snake_case mapping
 }
 
 export abstract class Model {
@@ -39,6 +40,7 @@ export abstract class Model {
   static config: ModelConfig = {
     primaryKey: 'id',
     timestamps: true,
+    mapAttributes: true, // Default to true for automatic camelCase <-> snake_case mapping
   };
 
   // Validation rules - override in subclasses
@@ -99,6 +101,45 @@ export abstract class Model {
    */
   static hasTimestamps(): boolean {
     return this.config.timestamps !== false;
+  }
+
+  /**
+   * Check if attribute mapping is enabled
+   */
+  static hasAttributeMapping(): boolean {
+    return this.config.mapAttributes !== false;
+  }
+
+  /**
+   * Map model attributes (camelCase) to database columns (snake_case)
+   */
+  static mapAttributesToColumns(attributes: Record<string, any>): Record<string, any> {
+    if (!this.hasAttributeMapping()) {
+      return attributes;
+    }
+
+    const mapped: Record<string, any> = {};
+    for (const [key, value] of Object.entries(attributes)) {
+      const columnName = toSnakeCase(key);
+      mapped[columnName] = value;
+    }
+    return mapped;
+  }
+
+  /**
+   * Map database columns (snake_case) to model attributes (camelCase)
+   */
+  static mapColumnsToAttributes(columns: Record<string, any>): Record<string, any> {
+    if (!this.hasAttributeMapping()) {
+      return columns;
+    }
+
+    const mapped: Record<string, any> = {};
+    for (const [key, value] of Object.entries(columns)) {
+      const attributeName = toCamelCase(key);
+      mapped[attributeName] = value;
+    }
+    return mapped;
   }
 
   /**
@@ -316,7 +357,10 @@ export abstract class Model {
     const primaryKey = ModelClass.getPrimaryKey();
 
     const sql = `DELETE FROM ${adapter.escapeIdentifier(tableName)} WHERE ${adapter.escapeIdentifier(primaryKey)} = $1`;
-    const result = await adapter.execute(sql, [id]);
+
+    // Convert placeholders for the specific database adapter
+    const prepared = adapter.convertPlaceholders(sql, [id]);
+    const result = await adapter.execute(prepared.sql, prepared.params);
 
     return result.rowCount > 0;
   }
@@ -598,9 +642,14 @@ export abstract class Model {
    */
   protected static instantiate<T extends Model>(this: new () => T, data: any): T {
     const instance = new this();
-    Object.assign(instance, data);
+    const ModelClass = this as any;
+
+    // Map database columns to model attributes
+    const mappedData = ModelClass.mapColumnsToAttributes(data);
+
+    Object.assign(instance, mappedData);
     (instance as any)._isNewRecord = false;
-    (instance as any)._originalAttributes = { ...data };
+    (instance as any)._originalAttributes = { ...mappedData };
     return instance;
   }
 
@@ -754,7 +803,10 @@ export abstract class Model {
     const id = this.getId();
 
     const sql = `DELETE FROM ${adapter.escapeIdentifier(tableName)} WHERE ${adapter.escapeIdentifier(primaryKey)} = $1`;
-    const result = await adapter.execute(sql, [id]);
+
+    // Convert placeholders for the specific database adapter
+    const prepared = adapter.convertPlaceholders(sql, [id]);
+    const result = await adapter.execute(prepared.sql, prepared.params);
 
     if (result.rowCount > 0) {
       // Run afterDestroy callbacks
@@ -853,12 +905,41 @@ export abstract class Model {
     const columnNames = columns.map(col => adapter.escapeIdentifier(col)).join(', ');
     const sql = `INSERT INTO ${adapter.escapeIdentifier(tableName)} (${columnNames}) VALUES (${placeholders.join(', ')}) RETURNING *`;
 
-    const result = await adapter.query(sql, values);
+    // Convert placeholders for the specific database adapter
+    const prepared = adapter.convertPlaceholders(sql, values);
+
+    // SQLite doesn't support RETURNING *, so we need to handle it differently
+    let result: any;
+    if (adapter.constructor.name === 'SqliteAdapter') {
+      // Convert Date objects to ISO strings for SQLite
+      const sqliteParams = prepared.params.map(param =>
+        param instanceof Date ? param.toISOString() : param
+      );
+
+      // For SQLite, insert first, then select the inserted row
+      const insertSql = prepared.sql.replace(' RETURNING *', '');
+      await adapter.execute(insertSql, sqliteParams);
+
+      // Get the last insert ID and fetch the row
+      const insertResult = await adapter.query('SELECT last_insert_rowid() as id');
+      const insertedId = insertResult.rows[0].id;
+      const primaryKey = this.modelClass.getPrimaryKey();
+
+      const selectResult = await adapter.query(
+        `SELECT * FROM ${adapter.escapeIdentifier(tableName)} WHERE ${adapter.escapeIdentifier(primaryKey)} = ?`,
+        [insertedId]
+      );
+      result = { rows: selectResult.rows };
+    } else {
+      result = await adapter.query(prepared.sql, prepared.params);
+    }
 
     if (result.rows.length > 0) {
-      Object.assign(this, result.rows[0]);
+      const ModelClass = this.modelClass as any;
+      const mappedResult = ModelClass.mapColumnsToAttributes(result.rows[0]);
+      Object.assign(this, mappedResult);
       this._isNewRecord = false;
-      this._originalAttributes = { ...result.rows[0] };
+      this._originalAttributes = { ...mappedResult };
 
       // Run afterCreate callbacks
       await this.runCallbacks('afterCreate');
@@ -890,14 +971,19 @@ export abstract class Model {
     const primaryKey = this.modelClass.getPrimaryKey();
     const id = this.getId();
 
-    // Add updated_at if timestamps enabled
-    if (this.modelClass.hasTimestamps() && !changes.updated_at) {
-      changes.updated_at = new Date();
-      (this as any).updated_at = changes.updated_at;
+    // Add updatedAt if timestamps enabled
+    const updatedAtKey = 'updatedAt';
+    if (this.modelClass.hasTimestamps() && !changes[updatedAtKey]) {
+      changes[updatedAtKey] = new Date();
+      (this as any)[updatedAtKey] = changes[updatedAtKey];
     }
 
-    const columns = Object.keys(changes);
-    const values = Object.values(changes);
+    // Map attributes to columns
+    const ModelClass = this.modelClass as any;
+    const mappedChanges = ModelClass.mapAttributesToColumns(changes);
+
+    const columns = Object.keys(mappedChanges);
+    const values = Object.values(mappedChanges);
     const setClause = columns
       .map((col, i) => `${adapter.escapeIdentifier(col)} = $${i + 1}`)
       .join(', ');
@@ -905,11 +991,35 @@ export abstract class Model {
     values.push(id);
     const sql = `UPDATE ${adapter.escapeIdentifier(tableName)} SET ${setClause} WHERE ${adapter.escapeIdentifier(primaryKey)} = $${values.length} RETURNING *`;
 
-    const result = await adapter.query(sql, values);
+    // Convert placeholders for the specific database adapter
+    const prepared = adapter.convertPlaceholders(sql, values);
+
+    // SQLite doesn't support RETURNING *, so we need to handle it differently
+    let result: any;
+    if (adapter.constructor.name === 'SqliteAdapter') {
+      // Convert Date objects to ISO strings for SQLite
+      const sqliteParams = prepared.params.map(param =>
+        param instanceof Date ? param.toISOString() : param
+      );
+
+      // For SQLite, update first, then select the updated row
+      const updateSql = prepared.sql.replace(' RETURNING *', '');
+      await adapter.execute(updateSql, sqliteParams);
+
+      // Fetch the updated row
+      const selectResult = await adapter.query(
+        `SELECT * FROM ${adapter.escapeIdentifier(tableName)} WHERE ${adapter.escapeIdentifier(primaryKey)} = ?`,
+        [id]
+      );
+      result = { rows: selectResult.rows };
+    } else {
+      result = await adapter.query(prepared.sql, prepared.params);
+    }
 
     if (result.rows.length > 0) {
-      Object.assign(this, result.rows[0]);
-      this._originalAttributes = { ...result.rows[0] };
+      const mappedResult = ModelClass.mapColumnsToAttributes(result.rows[0]);
+      Object.assign(this, mappedResult);
+      this._originalAttributes = { ...mappedResult };
 
       // Run afterUpdate callbacks
       await this.runCallbacks('afterUpdate');
@@ -926,6 +1036,9 @@ export abstract class Model {
   private getAttributesForInsert(): Record<string, any> {
     const attributes: Record<string, any> = {};
     const primaryKey = this.modelClass.getPrimaryKey();
+    const primaryKeyAttr = this.modelClass.hasAttributeMapping()
+      ? toCamelCase(primaryKey)
+      : primaryKey;
 
     for (const key in this) {
       if (key.startsWith('_') || typeof (this as any)[key] === 'function') {
@@ -933,12 +1046,15 @@ export abstract class Model {
       }
 
       // Skip primary key if it's null/undefined (auto-increment)
-      if (key === primaryKey && ((this as any)[key] === null || (this as any)[key] === undefined)) {
+      if (
+        key === primaryKeyAttr &&
+        ((this as any)[key] === null || (this as any)[key] === undefined)
+      ) {
         continue;
       }
 
       // Skip confirmation fields (virtual attributes)
-      if (key.endsWith('_confirmation')) {
+      if (key.endsWith('Confirmation') || key.endsWith('_confirmation')) {
         continue;
       }
 
@@ -948,16 +1064,22 @@ export abstract class Model {
     // Add timestamps if enabled
     if (this.modelClass.hasTimestamps()) {
       const now = new Date();
-      if (!attributes.created_at) {
-        attributes.created_at = now;
-        (this as any).created_at = now;
+      // Always use camelCase for attribute names, let mapping handle column names
+      const createdAtKey = 'createdAt';
+      const updatedAtKey = 'updatedAt';
+
+      if (!attributes[createdAtKey]) {
+        attributes[createdAtKey] = now;
+        (this as any)[createdAtKey] = now;
       }
-      if (!attributes.updated_at) {
-        attributes.updated_at = now;
-        (this as any).updated_at = now;
+      if (!attributes[updatedAtKey]) {
+        attributes[updatedAtKey] = now;
+        (this as any)[updatedAtKey] = now;
       }
     }
 
-    return attributes;
+    // Map attributes to database columns
+    const ModelClass = this.modelClass as any;
+    return ModelClass.mapAttributesToColumns(attributes);
   }
 }

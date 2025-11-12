@@ -68,21 +68,21 @@ class User extends Model {
   id!: number;
   name!: string;
   email!: string;
-  created_at!: Date;
-  updated_at!: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 class Post extends Model {
   id!: number;
-  user_id!: number;
+  userId!: number;
   title!: string;
   content!: string;
   published!: boolean;
-  created_at!: Date;
-  updated_at!: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
-// Set the database adapter for all models
+// Set database adapter for all models
 Model.setAdapter(adapter);
 ```
 
@@ -114,14 +114,11 @@ await user.destroy();
 
 ```typescript
 // Chainable queries
-const activeUsers = await User.where({ active: true })
-  .orderBy('created_at', 'DESC')
-  .limit(10)
-  .all();
+const activeUsers = await User.where({ active: true }).orderBy('createdAt', 'DESC').limit(10).all();
 
 // Complex queries
 const posts = await Post.where('published = ?', true)
-  .where('created_at > ?', thirtyDaysAgo)
+  .where('createdAt > ?', thirtyDaysAgo)
   .orderBy('views', 'DESC')
   .all();
 
@@ -147,7 +144,7 @@ Post.scope('popular', (query, minViews = 100) => {
 });
 
 Post.scope('recent', query => {
-  return query.orderBy('created_at', 'DESC').limit(10);
+  return query.orderBy('createdAt', 'DESC').limit(10);
 });
 
 // Use scopes
@@ -157,13 +154,13 @@ const popularPosts = await (Post as any).popular(500).all();
 // Chain scopes with queries
 const featured = await (Post as any)
   .published()
-  .where({ is_featured: true })
+  .where({ isFeatured: true })
   .orderBy('views', 'DESC')
   .all();
 
 // Default scope (applied to all queries)
 User.defaultScope({
-  where: { deleted_at: null }, // Soft delete
+  where: { deletedAt: null }, // Soft delete
   order: ['name', 'ASC'],
 });
 
@@ -187,8 +184,8 @@ Profile.belongsTo('user', User);
 // Many-to-many
 Post.hasManyThrough('tags', Tag, {
   through: 'post_tags',
-  foreignKey: 'post_id',
-  throughForeignKey: 'tag_id',
+  foreignKey: 'postId',
+  throughForeignKey: 'tagId',
 });
 
 // Usage
@@ -244,7 +241,7 @@ class User extends Model {
     },
     password: {
       length: { min: 8 },
-      confirmation: true, // Requires password_confirmation field
+      confirmation: true, // Requires passwordConfirmation field
     },
     status: {
       inclusion: {
@@ -342,7 +339,7 @@ Returning `false` from a `before*` callback halts the chain and prevents the ope
 const transaction = await adapter.beginTransaction();
 try {
   await transaction.execute('INSERT INTO users (name) VALUES ($1)', ['Alice']);
-  await transaction.execute('INSERT INTO profiles (user_id) VALUES ($1)', [1]);
+  await transaction.execute('INSERT INTO profiles (userId) VALUES ($1)', [1]);
   await transaction.commit();
 } catch (error) {
   await transaction.rollback();

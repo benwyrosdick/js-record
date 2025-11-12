@@ -1,6 +1,6 @@
 /**
  * Test script to verify Model functionality
- * 
+ *
  * Usage:
  *   ts-node test-model.ts
  */
@@ -14,8 +14,8 @@ class User extends Model {
   email!: string;
   age?: number;
   active!: boolean;
-  created_at!: Date;
-  updated_at!: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 
   static config = {
     tableName: 'users',
@@ -96,7 +96,7 @@ async function testModel() {
     user1.active = true;
     await user1.save();
     console.log(`   ✅ Created user: ${user1.name} (ID: ${user1.id})`);
-    console.log(`   Timestamps: created_at=${user1.created_at}, updated_at=${user1.updated_at}\n`);
+    console.log(`   Timestamps: createdAt=${user1.createdAt}, updatedAt=${user1.updatedAt}\n`);
 
     // Test 2: Create using static method
     console.log('2️⃣  Create using Model.create():');
@@ -109,7 +109,12 @@ async function testModel() {
     console.log(`   ✅ Created user: ${user2.name} (ID: ${user2.id})\n`);
 
     // Test 3: Create more users
-    await User.create({ name: 'Charlie Brown', email: 'charlie@example.com', age: 42, active: false });
+    await User.create({
+      name: 'Charlie Brown',
+      email: 'charlie@example.com',
+      age: 42,
+      active: false,
+    });
     await User.create({ name: 'Diana Prince', email: 'diana@example.com', age: 30, active: true });
     console.log('3️⃣  Created additional test users\n');
 
@@ -156,7 +161,7 @@ async function testModel() {
       foundUser.age = 29;
       await foundUser.save();
       console.log(`   ✅ Updated age: ${oldAge} → ${foundUser.age}`);
-      console.log(`   Updated timestamp: ${foundUser.updated_at}\n`);
+      console.log(`   Updated timestamp: ${foundUser.updatedAt}\n`);
     }
 
     // Test 11: Update using instance method
@@ -173,10 +178,7 @@ async function testModel() {
 
     // Test 13: Query builder integration
     console.log('1️⃣3️⃣  Query builder integration:');
-    const activeUsers = await User.where({ active: true })
-      .orderBy('age', 'DESC')
-      .limit(2)
-      .all();
+    const activeUsers = await User.where({ active: true }).orderBy('age', 'DESC').limit(2).all();
     console.log(`   ✅ Active users (top 2 by age):`);
     activeUsers.forEach(u => console.log(`      - ${u.name}, age ${u.age}`));
     console.log();
@@ -266,8 +268,7 @@ async function testModel() {
 
     // Test 22: Complex query with WHERE
     console.log('2️⃣2️⃣  Complex WHERE query:');
-    const youngActiveUsers = await User
-      .where({ active: true })
+    const youngActiveUsers = await User.where({ active: true })
       .where('age', '<', 35)
       .orderBy('age', 'ASC')
       .all();
@@ -283,14 +284,16 @@ async function testModel() {
       age: 25,
       active: true,
     });
-    console.log(`   ✅ Created at: ${timestampUser.created_at}`);
-    console.log(`   ✅ Updated at: ${timestampUser.updated_at}`);
-    
+    console.log(`   ✅ Created at: ${timestampUser.createdAt}`);
+    console.log(`   ✅ Updated at: ${timestampUser.updatedAt}`);
+
     // Wait a bit and update
     await new Promise(resolve => setTimeout(resolve, 100));
     await timestampUser.update({ age: 26 });
-    console.log(`   ✅ Updated at (after update): ${timestampUser.updated_at}`);
-    console.log(`   ✅ Timestamps are different: ${timestampUser.created_at < timestampUser.updated_at}\n`);
+    console.log(`   ✅ Updated at (after update): ${timestampUser.updatedAt}`);
+    console.log(
+      `   ✅ Timestamps are different: ${timestampUser.createdAt < timestampUser.updatedAt}\n`
+    );
 
     console.log('✨ All Model tests passed!\n');
 
@@ -299,7 +302,6 @@ async function testModel() {
     await adapter.execute('DROP TABLE IF EXISTS posts');
     await adapter.execute('DROP TABLE IF EXISTS users');
     console.log('✅ Cleanup complete\n');
-
   } catch (error) {
     console.error('❌ Error:', error);
     if (error instanceof Error) {

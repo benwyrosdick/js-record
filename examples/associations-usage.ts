@@ -23,43 +23,43 @@ class User extends Model {
   id!: number;
   name!: string;
   email!: string;
-  created_at!: Date;
-  updated_at!: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 class Profile extends Model {
   id!: number;
-  user_id!: number;
+  userId!: number;
   bio!: string;
-  avatar_url?: string;
-  created_at!: Date;
-  updated_at!: Date;
+  avatarUrl?: string;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 class Post extends Model {
   id!: number;
-  user_id!: number;
+  userId!: number;
   title!: string;
   content!: string;
   published!: boolean;
-  created_at!: Date;
-  updated_at!: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 class Comment extends Model {
   id!: number;
-  post_id!: number;
-  user_id!: number;
+  postId!: number;
+  userId!: number;
   content!: string;
-  created_at!: Date;
-  updated_at!: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 class Tag extends Model {
   id!: number;
   name!: string;
-  created_at!: Date;
-  updated_at!: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 // PostTag join table (not used directly in associations, but defined for reference)
@@ -70,8 +70,8 @@ class Tag extends Model {
 //   };
 //
 //   id!: number;
-//   post_id!: number;
-//   tag_id!: number;
+//   postId!: number;
+//   tagId!: number;
 // }
 
 // Define associations
@@ -97,15 +97,15 @@ Post.hasMany('comments', Comment);
 // Post has many Tags through PostTags (many-to-many)
 Post.hasManyThrough('tags', Tag, {
   through: 'post_tags',
-  foreignKey: 'post_id',
-  throughForeignKey: 'tag_id',
+  foreignKey: 'postId',
+  throughForeignKey: 'tagId',
 });
 
 // Tag has many Posts through PostTags (many-to-many)
 Tag.hasManyThrough('posts', Post, {
   through: 'post_tags',
-  foreignKey: 'tag_id',
-  throughForeignKey: 'post_id',
+  foreignKey: 'tagId',
+  throughForeignKey: 'postId',
 });
 
 // Comment belongs to Post

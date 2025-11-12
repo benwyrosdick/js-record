@@ -75,6 +75,8 @@ class User extends Model {
   name!: string;
   email!: string;
   age?: number;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 // Use like ActiveRecord
@@ -289,8 +291,41 @@ await adapter.disconnect();
 **Q: Database is locked**
 
 ```typescript
-// Enable WAL mode
-await adapter.execute('PRAGMA journal_mode = WAL');
+// 2. Define Model
+class Todo extends Model {
+  static tableName = 'todos';
+
+  id!: number;
+  title!: string;
+  completed!: boolean;
+  createdAt!: Date;
+  updatedAt!: Date;
+}
+
+// 3. Create Schema
+await adapter.execute(`
+  CREATE TABLE IF NOT EXISTS todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    completed INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// 4. Use It
+const todo = await Todo.create({
+  title: 'Learn js-record',
+  completed: false,
+});
+
+const todos = await Todo.all();
+console.log(`You have ${todos.length} todos`);
+
+todo.completed = true;
+await todo.save();
+
+await adapter.disconnect();
 ```
 
 **Q: Foreign keys not working**

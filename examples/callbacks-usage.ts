@@ -23,10 +23,10 @@ class Article extends Model {
   title!: string;
   slug?: string;
   content!: string;
-  published_at?: Date;
-  view_count!: number;
-  created_at!: Date;
-  updated_at!: Date;
+  publishedAt?: Date;
+  viewCount!: number;
+  createdAt!: Date;
+  updatedAt!: Date;
 
   // Instance method callbacks - automatically called
   beforeSave() {
@@ -45,8 +45,8 @@ class Article extends Model {
 
   beforeCreate() {
     console.log('beforeCreate: Initializing view count...');
-    if (!this.view_count) {
-      this.view_count = 0;
+    if (!this.viewCount) {
+      this.viewCount = 0;
     }
   }
 
@@ -86,10 +86,10 @@ class User extends Model {
   id!: number;
   email!: string;
   password?: string;
-  password_hash?: string;
-  reset_token?: string;
-  created_at!: Date;
-  updated_at!: Date;
+  passwordHash?: string;
+  resetToken?: string;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 // Register class-level callbacks
@@ -107,7 +107,7 @@ User.beforeUpdate('generateResetToken', {
   console.log('Hashing password...');
   if (this.password) {
     // In real app, use bcrypt
-    this.password_hash = `hashed_${this.password}`;
+    this.passwordHash = `hashed_${this.password}`;
     this.password = undefined; // Clear plain password
   }
 };
@@ -121,7 +121,7 @@ User.beforeUpdate('generateResetToken', {
 
 (User.prototype as any).generateResetToken = function () {
   console.log('Generating password reset token...');
-  this.reset_token = Math.random().toString(36).substring(7);
+  this.resetToken = Math.random().toString(36).substring(7);
 };
 
 // Model with conditional callbacks
@@ -129,10 +129,10 @@ class Post extends Model {
   id!: number;
   title!: string;
   status!: string;
-  published_at?: Date;
-  notification_sent!: boolean;
-  created_at!: Date;
-  updated_at!: Date;
+  publishedAt?: Date;
+  notificationSent!: boolean;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 // Conditional callback - only runs for published posts
@@ -140,8 +140,8 @@ Post.afterCreate(
   async (model: Model) => {
     const post = model as Post;
     console.log('Sending publication notifications...');
-    post.notification_sent = true;
-    post.published_at = new Date();
+    post.notificationSent = true;
+    post.publishedAt = new Date();
     // In real app: send emails, push notifications, etc.
   },
   {
@@ -200,7 +200,7 @@ async function demonstrateCallbacks() {
     user.email = 'user@example.com';
     user.password = 'mysecretpassword';
     await user.save({ validate: false });
-    console.log('Password hash:', user.password_hash);
+    console.log('Password hash:', user.passwordHash);
     console.log('Plain password cleared:', user.password);
     console.log();
 
@@ -209,19 +209,19 @@ async function demonstrateCallbacks() {
     const publishedPost = new Post();
     publishedPost.title = 'Published Post';
     publishedPost.status = 'published';
-    publishedPost.notification_sent = false;
+    publishedPost.notificationSent = false;
     await publishedPost.save({ validate: false });
-    console.log('Notification sent?', publishedPost.notification_sent);
-    console.log('Published at:', publishedPost.published_at);
+    console.log('Notification sent?', publishedPost.notificationSent);
+    console.log('Published at:', publishedPost.publishedAt);
     console.log();
 
     console.log('7. Draft post (no notification):');
     const draftPost = new Post();
     draftPost.title = 'Draft Post';
     draftPost.status = 'draft';
-    draftPost.notification_sent = false;
+    draftPost.notificationSent = false;
     await draftPost.save({ validate: false });
-    console.log('Notification sent?', draftPost.notification_sent);
+    console.log('Notification sent?', draftPost.notificationSent);
     console.log();
   } catch (error) {
     console.error('Error:', error);
