@@ -430,7 +430,7 @@ export class PostgresAdapter extends DatabaseAdapter {
         if (content === '') {
           return [];
         }
-        return content.split(',').map(item => item.trim());
+        return content.split(',').map((item: string) => item.trim());
       }
       return [value];
     }
