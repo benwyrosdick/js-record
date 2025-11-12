@@ -1,6 +1,6 @@
 # js-record
 
-A TypeScript ORM, inspired by Ruby's ActiveRecord, designed for PostgreSQL, MySQL, and sqlite running on bun.
+A TypeScript ORM, inspired by Ruby's ActiveRecord, designed for PostgreSQL, MySQL, and SQLite running on bun.
 
 ## Features
 
@@ -25,6 +25,8 @@ bun add js-record
 
 ### Setting Up a Database Connection
 
+#### PostgreSQL
+
 ```typescript
 import { PostgresAdapter } from 'js-record';
 
@@ -34,6 +36,24 @@ const adapter = new PostgresAdapter({
   database: 'myapp_development',
   user: 'postgres',
   password: 'password',
+});
+
+await adapter.connect();
+```
+
+#### SQLite (Bun Native)
+
+```typescript
+import { SqliteAdapter } from 'js-record';
+
+// File-based database
+const adapter = new SqliteAdapter({
+  database: './myapp.db',
+});
+
+// Or use in-memory database
+const adapter = new SqliteAdapter({
+  database: ':memory:',
 });
 
 await adapter.connect();
@@ -307,12 +327,13 @@ try {
 - ✅ Validations (presence, length, format, numericality, uniqueness, custom, etc.)
 - ✅ Callbacks/Hooks (lifecycle hooks with conditional execution)
 - ✅ Migrations
+- ✅ SQLite adapter with Bun's native SQLite support
 
 ### Planned
 
 - 📋 Eager loading (includes)
 - 📋 Scopes
-- 📋 Additional database adapters (MySQL, SQLite)
+- 📋 MySQL adapter
 
 ## Development
 
@@ -353,12 +374,13 @@ src/
 
 Currently supported:
 
-- PostgreSQL
+- **PostgreSQL** - Full support using Bun's native PostgreSQL driver
+- **SQLite** - Full support using Bun's native SQLite (file-based and in-memory)
+  - See [SQLite Guide](docs/SQLITE.md) for detailed documentation
 
 Planned:
 
 - MySQL
-- SQLite
 - SQL Server
 
 ## Contributing

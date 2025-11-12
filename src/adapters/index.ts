@@ -5,4 +5,5 @@
 
 export { DatabaseAdapter } from './Adapter';
 export { PostgresAdapter } from './PostgresAdapter';
+export { SqliteAdapter } from './SqliteAdapter';
 export * from './types';

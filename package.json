@@ -1,7 +1,7 @@
 {
   "name": "js-record",
   "version": "0.1.0",
-  "description": "A TypeScript ORM inspired by ActiveRecord for PostgreSQL and other databases",
+  "description": "A TypeScript ORM inspired by ActiveRecord for PostgreSQL, SQLite, and other databases running on Bun",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -23,6 +23,7 @@
     "test:validations": "bun run test-validations.ts",
     "test:callbacks": "bun run test-callbacks.ts",
     "test:migrations": "bun run test-migrations.ts",
+    "test:sqlite": "bun run test-sqlite.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit"
@@ -33,6 +34,8 @@
     "typescript",
     "postgresql",
     "postgres",
+    "sqlite",
+    "bun",
     "database",
     "sql",
     "query-builder"
@@ -41,12 +44,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/js-record.git"
+    "url": "https://github.com/benwyrosdick/js-record.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/js-record/issues"
+    "url": "https://github.com/benwyrosdick/js-record/issues"
   },
-  "homepage": "https://github.com/yourusername/js-record#readme",
+  "homepage": "https://github.com/benwyrosdick/js-record#readme",
   "engines": {
     "node": ">=16.0.0"
   },
