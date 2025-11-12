@@ -2,7 +2,7 @@
 -- Run this before running test-associations.ts
 --
 -- Usage:
--- psql -U postgres -d js_record_dev -f setup-test-db.sql
+-- psql -U postgres -d js_record_dev -f tests/setup-test-db.sql
 
 -- Drop existing tables if they exist
 DROP TABLE IF EXISTS post_tags CASCADE;

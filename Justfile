@@ -169,7 +169,7 @@ examples:
 # Database setup for development (PostgreSQL)
 db-setup:
     @echo "🗄️  Setting up development database..."
-    psql -U postgres -f setup-test-db.sql
+    psql -U postgres -f tests/setup-test-db.sql
     @echo "✅ Database setup complete"
 
 # Create a new migration
