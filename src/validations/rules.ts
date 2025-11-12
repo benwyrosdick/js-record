@@ -39,7 +39,10 @@ export function validatePresence(ctx: ValidationContext): string | null {
   const options: PresenceOptions = typeof ctx.options === 'boolean' ? {} : ctx.options;
   const { allowNull = false, allowEmpty = false, message } = options;
 
-  if (ctx.value === null && !allowNull) {
+  if (ctx.value === null) {
+    if (allowNull) {
+      return null;
+    }
     return message || `${ctx.field} can't be blank`;
   }
 

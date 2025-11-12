@@ -5,10 +5,7 @@
     "sourceType": "module",
     "project": "./tsconfig.json"
   },
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended"
-  ],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
   "rules": {
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/explicit-module-boundary-types": "off",
@@ -17,5 +14,17 @@
   "env": {
     "node": true,
     "es6": true
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.spec.ts"],
+      "parserOptions": {
+        "project": "./tsconfig.test.json"
+      },
+      "env": {
+        "node": true,
+        "es6": true
+      }
+    }
+  ]
 }

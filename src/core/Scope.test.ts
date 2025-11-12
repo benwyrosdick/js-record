@@ -568,7 +568,7 @@ describe('Scope Integration', () => {
     });
 
     it('should handle scope function that throws error', () => {
-      const errorFn = (query: QueryBuilder) => {
+      const errorFn = (_query: QueryBuilder) => {
         throw new Error('Scope error');
       };
       ScopeRegistry.register('TestScopeModel', 'errorScope', errorFn);
