@@ -132,6 +132,45 @@ const count = await User.where({ active: true }).count();
 const exists = await User.where({ email: 'john@example.com' }).exists();
 ```
 
+### Scopes
+
+Define reusable query conditions:
+
+```typescript
+// Define scopes
+Post.scope('published', query => {
+  return query.where({ status: 'published' });
+});
+
+Post.scope('popular', (query, minViews = 100) => {
+  return query.where('views >= ?', minViews);
+});
+
+Post.scope('recent', query => {
+  return query.orderBy('created_at', 'DESC').limit(10);
+});
+
+// Use scopes
+const publishedPosts = await (Post as any).published().all();
+const popularPosts = await (Post as any).popular(500).all();
+
+// Chain scopes with queries
+const featured = await (Post as any)
+  .published()
+  .where({ is_featured: true })
+  .orderBy('views', 'DESC')
+  .all();
+
+// Default scope (applied to all queries)
+User.defaultScope({
+  where: { deleted_at: null }, // Soft delete
+  order: ['name', 'ASC'],
+});
+
+// Bypass default scope when needed
+const allUsers = await User.unscoped().all();
+```
+
 ### Associations
 
 Define relationships between models:
@@ -328,11 +367,11 @@ try {
 - ✅ Callbacks/Hooks (lifecycle hooks with conditional execution)
 - ✅ Migrations
 - ✅ SQLite adapter with Bun's native SQLite support
+- ✅ Scopes (reusable query conditions)
 
 ### Planned
 
 - 📋 Eager loading (includes)
-- 📋 Scopes
 - 📋 MySQL adapter
 
 ## Development

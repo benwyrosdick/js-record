@@ -58,6 +58,8 @@ export class QueryBuilder<T = any> {
   private limitValue?: number;
   private offsetValue?: number;
   private distinctValue: boolean = false;
+  private appliedScopes: Set<string> = new Set();
+  private unscopedValue: boolean = false;
 
   constructor(adapter: DatabaseAdapter, tableName: string) {
     this.adapter = adapter;
@@ -565,6 +567,44 @@ export class QueryBuilder<T = any> {
   }
 
   /**
+   * Apply a named scope (to be used with Model scopes)
+   */
+  scope(scopeName: string, ..._args: any[]): this {
+    this.appliedScopes.add(scopeName);
+    return this;
+  }
+
+  /**
+   * Remove all scopes (including default scope)
+   */
+  unscoped(): this {
+    this.unscopedValue = true;
+    this.appliedScopes.clear();
+    return this;
+  }
+
+  /**
+   * Check if a scope has been applied
+   */
+  hasScope(scopeName: string): boolean {
+    return this.appliedScopes.has(scopeName);
+  }
+
+  /**
+   * Check if query is unscoped
+   */
+  isUnscoped(): boolean {
+    return this.unscopedValue;
+  }
+
+  /**
+   * Get applied scope names
+   */
+  getAppliedScopes(): string[] {
+    return Array.from(this.appliedScopes);
+  }
+
+  /**
    * Clone the query builder
    */
   clone(): QueryBuilder<T> {
@@ -578,6 +618,8 @@ export class QueryBuilder<T = any> {
     cloned.limitValue = this.limitValue;
     cloned.offsetValue = this.offsetValue;
     cloned.distinctValue = this.distinctValue;
+    cloned.appliedScopes = new Set(this.appliedScopes);
+    cloned.unscopedValue = this.unscopedValue;
     return cloned;
   }
 }

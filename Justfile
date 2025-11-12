@@ -65,6 +65,7 @@ test:
     @just test-callbacks
     @just test-migrations
     @just test-sqlite
+    @just test-scopes
 
 # Test database connection
 test-connection:
@@ -105,6 +106,11 @@ test-migrations:
 test-sqlite:
     @echo "💾 Testing SQLite adapter..."
     bun run test:sqlite
+
+# Test scopes
+test-scopes:
+    @echo "🎯 Testing scopes..."
+    bun run test:scopes
 
 # Run specific test file
 test-file FILE:
@@ -148,11 +154,16 @@ example-validations:
     @echo "🚀 Running validations example..."
     bun run examples/validations-usage.ts
 
+example-scopes:
+    @echo "🚀 Running scopes example..."
+    bun run examples/scopes-usage.ts
+
 # Run all examples
 examples:
     @echo "🚀 Running all examples..."
     @just example-sqlite
     @just example-multi-adapter
+    @just example-scopes
 
 # Database setup for development (PostgreSQL)
 db-setup:

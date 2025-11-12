@@ -21,6 +21,12 @@ import { Validator } from '../validations/Validator';
 import type { ValidationRules, ValidationErrors } from '../validations/types';
 import { CallbackRegistry } from '../callbacks/CallbackRegistry';
 import type { CallbackType, CallbackFunction, CallbackOptions } from '../callbacks/types';
+import {
+  ScopeRegistry,
+  DefaultScopeRegistry,
+  type ScopeFunction,
+  type DefaultScopeOptions,
+} from './Scope';
 
 export interface ModelConfig {
   tableName?: string;
@@ -97,10 +103,73 @@ export abstract class Model {
 
   /**
    * Create a new query builder for this model
+   * Automatically applies default scope if defined
    */
   static query<T extends Model>(this: new () => T): QueryBuilder<T> {
     const ModelClass = this as any;
-    return new QueryBuilder<T>(ModelClass.getAdapter(), ModelClass.getTableName());
+    const query = new QueryBuilder<T>(ModelClass.getAdapter(), ModelClass.getTableName());
+
+    // Apply default scope if exists and not unscoped
+    if (!query.isUnscoped()) {
+      const defaultScope = DefaultScopeRegistry.get(this.name);
+      if (defaultScope) {
+        if (defaultScope.where) {
+          query.where(defaultScope.where);
+        }
+        if (defaultScope.order) {
+          if (Array.isArray(defaultScope.order)) {
+            query.orderBy(defaultScope.order[0], defaultScope.order[1]);
+          } else {
+            query.orderBy(defaultScope.order);
+          }
+        }
+        if (defaultScope.scope) {
+          defaultScope.scope(query);
+        }
+      }
+    }
+
+    return query;
+  }
+
+  /**
+   * Define a scope for this model
+   */
+  static scope<T extends Model>(
+    this: new () => T,
+    scopeName: string,
+    scopeFn: ScopeFunction<T>
+  ): void {
+    ScopeRegistry.register<T>(this.name, scopeName, scopeFn);
+
+    // Add the scope as a static method on the model class
+    const ModelClass = this as any;
+    ModelClass[scopeName] = function (...args: any[]) {
+      const query = ModelClass.query();
+      const scopedQuery = scopeFn(query, ...args);
+
+      // Return an object that wraps the query and allows chaining
+      // This allows: Model.published() to work like Model.published().all()
+      const wrapper: any = scopedQuery;
+
+      // If called without chaining (as a function result), return the query builder
+      return wrapper;
+    };
+  }
+
+  /**
+   * Define a default scope for this model
+   */
+  static defaultScope(options: DefaultScopeOptions): void {
+    DefaultScopeRegistry.register(this.name, options);
+  }
+
+  /**
+   * Create an unscoped query (bypassing default scope)
+   */
+  static unscoped<T extends Model>(this: new () => T): QueryBuilder<T> {
+    const ModelClass = this as any;
+    return new QueryBuilder<T>(ModelClass.getAdapter(), ModelClass.getTableName()).unscoped();
   }
 
   /**
