@@ -8,7 +8,7 @@
  *   DB_HOST=localhost DB_PORT=5432 DB_NAME=test DB_USER=postgres DB_PASSWORD=password ts-node test-connection.ts
  */
 
-import { PostgresAdapter } from './src/adapters';
+import { PostgresAdapter } from '../src/adapters/PostgresAdapter';
 
 async function testConnection() {
   console.log('🔌 Testing PostgreSQL Adapter Connection...\n');

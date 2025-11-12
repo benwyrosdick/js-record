@@ -71,57 +71,52 @@ test:
 # Test database connection
 test-connection:
     @echo "🔌 Testing database connection..."
-    bun run test-connection.ts
+    bun run tests/test-connection.ts
 
 # Test query builder
 test-query-builder:
     @echo "🔍 Testing query builder..."
-    bun run test-query-builder.ts
+    bun run tests/test-query-builder.ts
 
 # Test model functionality
 test-model:
     @echo "📦 Testing model..."
-    bun run test-model.ts
+    bun run tests/test-model.ts
 
 # Test associations
 test-associations:
     @echo "🔗 Testing associations..."
-    bun run test-associations.ts
+    bun run tests/test-associations.ts
 
 # Test validations
 test-validations:
     @echo "✅ Testing validations..."
-    bun run test-validations.ts
+    bun run tests/test-validations.ts
 
 # Test callbacks
 test-callbacks:
     @echo "🪝 Testing callbacks..."
-    bun run test-callbacks.ts
+    bun run tests/test-callbacks.ts
 
 # Test migrations
 test-migrations:
     @echo "🔄 Testing migrations..."
-    bun run test-migrations.ts
+    bun run tests/test-migrations.ts
 
 # Test SQLite adapter
 test-sqlite:
     @echo "💾 Testing SQLite adapter..."
-    bun run test-sqlite.ts
+    bun run tests/test-sqlite.ts
 
 # Test scopes
 test-scopes:
     @echo "🎯 Testing scopes..."
-    bun run test-scopes.ts
+    bun run tests/test-scopes.ts
 
 # Test attribute mapping
 test-attribute-mapping:
     @echo "🔍 Testing attribute mapping..."
-    bun run test-attribute-mapping.ts
-
-# Run specific test file
-test-file FILE:
-    @echo "🧪 Running test: {{FILE}}..."
-    bun run {{FILE}}
+    bun run tests/test-attribute-mapping.ts
 
 # Run all quality checks (type check, lint, format check)
 check: typecheck lint format-check

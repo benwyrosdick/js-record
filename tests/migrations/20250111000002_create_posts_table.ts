@@ -2,7 +2,7 @@
  * Example migration: Create posts table with foreign key
  */
 
-import { Migration } from '../src/migrations/Migration';
+import { Migration } from '../../src/migrations/Migration';
 
 export default class CreatePostsTable extends Migration {
   async up(): Promise<void> {

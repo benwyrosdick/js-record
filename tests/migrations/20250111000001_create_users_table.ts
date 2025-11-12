@@ -2,7 +2,7 @@
  * Example migration: Create users table
  */
 
-import { Migration } from '../src/migrations/Migration';
+import { Migration } from '../../src/migrations/Migration';
 
 export default class CreateUsersTable extends Migration {
   async up(): Promise<void> {

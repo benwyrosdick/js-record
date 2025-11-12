@@ -3,7 +3,7 @@
  * Tests the scope functionality for models
  */
 
-import { Model, SqliteAdapter } from './src/index';
+import { Model, SqliteAdapter } from '../src/index';
 
 // Setup SQLite adapter
 const adapter = new SqliteAdapter({ database: ':memory:' });

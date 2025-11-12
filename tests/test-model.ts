@@ -5,7 +5,7 @@
  *   ts-node test-model.ts
  */
 
-import { PostgresAdapter, Model } from './src';
+import { PostgresAdapter, Model } from '../src/index';
 
 // Define a User model
 class User extends Model {

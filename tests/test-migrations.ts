@@ -2,8 +2,8 @@
  * Test migrations functionality
  */
 
-import { PostgresAdapter } from './src/adapters/PostgresAdapter';
-import { MigrationRunner } from './src/migrations/MigrationRunner';
+import { PostgresAdapter } from '../src/adapters/PostgresAdapter';
+import { MigrationRunner } from '../src/migrations/MigrationRunner';
 
 // Import migrations
 import CreateUsersTable from './migrations/20250111000001_create_users_table';

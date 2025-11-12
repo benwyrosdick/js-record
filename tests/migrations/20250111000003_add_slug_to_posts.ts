@@ -2,7 +2,7 @@
  * Example migration: Add slug column to posts
  */
 
-import { Migration } from '../src/migrations/Migration';
+import { Migration } from '../../src/migrations/Migration';
 
 export default class AddSlugToPosts extends Migration {
   async up(): Promise<void> {

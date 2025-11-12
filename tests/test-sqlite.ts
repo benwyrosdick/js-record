@@ -3,7 +3,7 @@
  * Tests the SQLite adapter with Bun's native SQLite support
  */
 
-import { SqliteAdapter } from './src/adapters';
+import { SqliteAdapter } from '../src/adapters/SqliteAdapter';
 
 async function testSqliteAdapter() {
   console.log('🧪 Testing SQLite Adapter with Bun...\n');

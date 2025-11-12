@@ -2,8 +2,8 @@
  * Test validations functionality
  */
 
-import { Model } from './src/core/Model';
-import { PostgresAdapter } from './src/adapters/PostgresAdapter';
+import { Model } from '../src/core/Model';
+import { PostgresAdapter } from '../src/adapters/PostgresAdapter';
 
 // Initialize database adapter
 const adapter = new PostgresAdapter({

@@ -5,7 +5,7 @@
  *   ts-node test-query-builder.ts
  */
 
-import { PostgresAdapter, QueryBuilder } from './src';
+import { PostgresAdapter, QueryBuilder } from '../src/index';
 
 async function testQueryBuilder() {
   console.log('🔧 Testing Query Builder...\n');
