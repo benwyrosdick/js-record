@@ -93,13 +93,25 @@ export class QueryBuilder<T = any> {
     if (typeof condition === 'string') {
       // Raw SQL: .where('age > ?', 18) or .where('email', 'LIKE', '%@example.com')
       if (args.length === 1) {
-        // .where('age > ?', 18)
-        this.whereClauses.push({
-          type: 'raw',
-          rawSql: condition,
-          rawParams: [args[0]],
-          connector: 'AND',
-        });
+        // .where('age > ?', 18) or .where('column', value) -> defaults to '='
+        if (condition.includes('?')) {
+          // Raw SQL with placeholder
+          this.whereClauses.push({
+            type: 'raw',
+            rawSql: condition,
+            rawParams: [args[0]],
+            connector: 'AND',
+          });
+        } else {
+          // .where('column', value) -> treated as column = value
+          this.whereClauses.push({
+            type: 'simple',
+            column: condition,
+            operator: '=',
+            value: args[0],
+            connector: 'AND',
+          });
+        }
       } else if (args.length === 2) {
         // .where('email', 'LIKE', '%@example.com')
         this.whereClauses.push({
@@ -127,12 +139,25 @@ export class QueryBuilder<T = any> {
   orWhere(condition: WhereCondition, ...args: any[]): this {
     if (typeof condition === 'string') {
       if (args.length === 1) {
-        this.whereClauses.push({
-          type: 'raw',
-          rawSql: condition,
-          rawParams: [args[0]],
-          connector: 'OR',
-        });
+        // .orWhere('age > ?', 18) or .orWhere('column', value) -> defaults to '='
+        if (condition.includes('?')) {
+          // Raw SQL with placeholder
+          this.whereClauses.push({
+            type: 'raw',
+            rawSql: condition,
+            rawParams: [args[0]],
+            connector: 'OR',
+          });
+        } else {
+          // .orWhere('column', value) -> treated as column = value
+          this.whereClauses.push({
+            type: 'simple',
+            column: condition,
+            operator: '=',
+            value: args[0],
+            connector: 'OR',
+          });
+        }
       } else if (args.length === 2) {
         this.whereClauses.push({
           type: 'simple',
@@ -277,12 +302,25 @@ export class QueryBuilder<T = any> {
   having(condition: WhereCondition, ...args: any[]): this {
     if (typeof condition === 'string') {
       if (args.length === 1) {
-        this.havingClauses.push({
-          type: 'raw',
-          rawSql: condition,
-          rawParams: [args[0]],
-          connector: 'AND',
-        });
+        // .having('age > ?', 18) or .having('column', value) -> defaults to '='
+        if (condition.includes('?')) {
+          // Raw SQL with placeholder
+          this.havingClauses.push({
+            type: 'raw',
+            rawSql: condition,
+            rawParams: [args[0]],
+            connector: 'AND',
+          });
+        } else {
+          // .having('column', value) -> treated as column = value
+          this.havingClauses.push({
+            type: 'simple',
+            column: condition,
+            operator: '=',
+            value: args[0],
+            connector: 'AND',
+          });
+        }
       } else if (args.length === 2) {
         this.havingClauses.push({
           type: 'simple',
