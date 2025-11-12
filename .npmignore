@@ -1,6 +1,7 @@
 # Source files
 src/
 examples/
+changelogs/
 
 # Configuration
 tsconfig.json
@@ -11,6 +12,7 @@ tsconfig.json
 **/*.test.ts
 **/*.spec.ts
 coverage/
+tests/
 
 # CI/CD
 .github/
