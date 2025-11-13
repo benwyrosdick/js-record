@@ -353,14 +353,19 @@ Manage your database schema with migrations:
 #### Creating Migrations
 
 ```bash
-# Using the CLI (recommended for projects that install js-record)
+# Create a new migration
 npx js-record migration:create add_status_to_users
 # or with bun
 bunx js-record migration:create add_status_to_users
 
 # Interactive mode (prompts for name)
 npx js-record migration:create
+
+# Generate initial migration from existing database schema
+npx js-record migration:init
 ```
+
+The `migration:init` command is useful when adding js-record to an existing project - it will introspect your current database schema and generate a migration file with all the CREATE TABLE statements.
 
 This creates a new migration file in `migrations/` with a timestamp and stub:
 

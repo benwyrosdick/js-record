@@ -12,6 +12,28 @@ bun add js-record
 npm install js-record
 ```
 
+## Working with Existing Databases
+
+If you already have a database with tables and want to start using js-record migrations:
+
+```bash
+# 1. Configure your database connection (see below)
+# 2. Generate an initial migration from your existing schema
+npx js-record migration:init
+
+# This will create a migration file like:
+# migrations/20250112120000_initial_schema.ts
+
+# 3. Review the generated migration
+# 4. Mark it as run (since your database already has these tables)
+npx js-record migrate
+
+# 5. Now create new migrations for future changes
+npx js-record migration:create add_new_column
+```
+
+The `migration:init` command introspects your database and generates SQL CREATE TABLE statements for all existing tables (except the `migrations` tracking table).
+
 ## Creating Migrations
 
 ### Quick Start
@@ -130,7 +152,7 @@ When you run `js-record migrate:down`:
 
 ## Common Workflows
 
-### Setting Up a New Project
+### Setting Up a New Project (Fresh Database)
 
 ```bash
 # 1. Install js-record
@@ -159,6 +181,31 @@ npx js-record migrate
 
 # 6. Check status
 npx js-record migrate:status
+```
+
+### Setting Up with Existing Database Schema
+
+```bash
+# 1. Install js-record
+bun add js-record
+
+# 2. Create database config (same as above)
+
+# 3. Generate initial migration from existing schema
+npx js-record migration:init
+
+# This creates: migrations/20250112120000_initial_schema.ts
+# Review the file to ensure it captured everything correctly
+
+# 4. If you want to track this as "already applied" (recommended):
+npx js-record migrate
+
+# OR if you want to recreate the database from scratch:
+# - Drop all tables manually first
+# - Then run: npx js-record migrate
+
+# 5. Create new migrations for future changes
+npx js-record migration:create add_status_column
 ```
 
 ### Creating a new table
@@ -237,6 +284,91 @@ npx js-record migrate
 # ✓ Migrated: 20250112120100_create_posts_table
 ```
 
+## Real-World Example: Adding js-record to Existing App
+
+Let's say you have an existing Express app with a Postgres database that has users, posts, and comments tables. Here's how to add js-record:
+
+```bash
+# 1. Install js-record
+cd my-existing-app
+bun add js-record
+
+# 2. Create config with your existing database credentials
+cat > js-record.config.js << 'EOF'
+module.exports = {
+  adapter: 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  port: 5432,
+  database: 'my_existing_db',
+  user: 'postgres',
+  password: process.env.DB_PASSWORD,
+};
+EOF
+
+# 3. Dump your existing schema to a migration
+npx js-record migration:init
+
+# Output:
+# Loading database configuration...
+# Connecting to postgres database...
+# Retrieving database schema...
+#
+# Found 3 table(s): users, posts, comments
+#
+# Dumping schema for table: users
+# Dumping schema for table: posts
+# Dumping schema for table: comments
+#
+# ✓ Schema dump complete
+# ✓ Created migration: 20250112120000_initial_schema.ts
+
+# 4. Review the generated migration
+cat migrations/20250112120000_initial_schema.ts
+# Looks good!
+
+# 5. Mark this migration as "already applied"
+#    (since these tables already exist)
+npx js-record migrate
+
+# Output:
+# Running migration: 20250112120000_initial_schema
+# ✓ Migrated: 20250112120000_initial_schema
+# ✓ Successfully ran 1 migration(s)
+
+# WAIT - this will fail because tables already exist!
+# Let's fix this...
+
+# 6. Actually, let's just record it without running
+#    We'll manually insert into migrations table instead:
+psql my_existing_db -c "
+  CREATE TABLE IF NOT EXISTS migrations (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    batch INTEGER NOT NULL,
+    migration_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+  INSERT INTO migrations (name, batch)
+  VALUES ('20250112120000_initial_schema', 1);
+"
+
+# 7. Verify status
+npx js-record migrate:status
+# Status | Batch | Name
+#   ✓    |   1   | 20250112120000_initial_schema
+
+# 8. Now create a new migration for a real change
+npx js-record migration:create add_email_verified_to_users
+
+# 9. Edit the migration
+# migrations/20250112120100_add_email_verified_to_users.ts
+
+# 10. Run it
+npx js-record migrate
+# ✓ Migrated: 20250112120100_add_email_verified_to_users
+
+# Success! Your existing app now uses js-record migrations
+```
+
 ## Tips
 
 1. **Always use descriptive names**: `create_users_table` is better than `users`
@@ -245,6 +377,8 @@ npx js-record migrate
 4. **Version control**: Commit migration files to git
 5. **Don't edit old migrations**: Create new ones instead
 6. **Use environment variables**: Keep database credentials out of code
+7. **Review generated migrations**: Always check `migration:init` output before using
+8. **Existing databases**: When using `migration:init`, manually mark it as run to avoid recreating tables
 
 ## Troubleshooting
 

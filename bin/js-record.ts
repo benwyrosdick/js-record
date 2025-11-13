@@ -12,6 +12,7 @@ import {
   migrationStatus,
   resetMigrations,
 } from './migration-runner';
+import { initMigration } from './schema-dump';
 
 const command = process.argv[2];
 const args = process.argv.slice(3);
@@ -25,6 +26,7 @@ Usage:
 
 Commands:
   migration:create [name]    Create a new migration file
+  migration:init             Generate migration from existing database schema
   migrate                    Run pending migrations
   migrate:up                 Run pending migrations (alias)
   migrate:down [steps]       Rollback migrations (default: 1 batch)
@@ -34,6 +36,7 @@ Commands:
 
 Examples:
   js-record migration:create create_users_table
+  js-record migration:init
   js-record migrate
   js-record migrate:down
   js-record migrate:down 2
@@ -70,6 +73,12 @@ async function runCommand(): Promise<void> {
     case 'migrate:create':
     case 'g:migration':
       await createMigration(args[0]);
+      break;
+
+    case 'migration:init':
+    case 'migrate:init':
+    case 'init':
+      await initMigration();
       break;
 
     case 'migrate':

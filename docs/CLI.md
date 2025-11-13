@@ -107,6 +107,130 @@ DB_FILENAME=./database.db
 
 Create a new migration file with a timestamp and proper structure.
 
+**Usage:**
+
+```bash
+# With migration name
+js-record migration:create create_users_table
+js-record migration:create add_slug_to_posts
+
+# Interactive mode (prompts for name)
+js-record migration:create
+```
+
+See detailed documentation below.
+
+### migration:init
+
+Generate an initial migration from an existing database schema. This is useful when you're adding js-record to a project that already has a database with tables.
+
+**Aliases:** `migration:init`, `migrate:init`, `init`
+
+**Usage:**
+
+```bash
+js-record migration:init
+```
+
+**What it does:**
+
+1. Connects to your database using your configuration
+2. Introspects all tables (except the `migrations` tracking table)
+3. Generates SQL CREATE TABLE statements for each table
+4. Creates a migration file with all the schema as raw SQL
+5. Includes proper `down()` method to drop all tables
+
+**Example output:**
+
+```
+Loading database configuration...
+Connecting to postgres database...
+Retrieving database schema...
+
+Found 3 table(s): users, posts, comments
+
+Dumping schema for table: users
+Dumping schema for table: posts
+Dumping schema for table: comments
+
+✓ Schema dump complete
+
+Creating initial migration...
+
+✓ Created migration: 20250112120000_initial_schema.ts
+  Location: /path/to/project/migrations/20250112120000_initial_schema.ts
+
+This migration contains the current database schema.
+You can now track future changes with additional migrations.
+
+Note: The migrations table was excluded from the dump.
+```
+
+**Generated migration structure:**
+
+```typescript
+import { Migration } from 'js-record';
+
+export default class InitialSchema extends Migration {
+  async up(): Promise<void> {
+    // Execute the schema SQL
+    const sql = `
+      CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE TABLE posts (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        content TEXT,
+        CONSTRAINT fk_user FOREIGN KEY (user_id) 
+          REFERENCES users(id) ON DELETE CASCADE
+      );
+      
+      CREATE INDEX posts_user_id_index ON posts (user_id);
+    `;
+
+    // Split and execute each statement
+    const statements = sql
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && !s.startsWith('--'));
+
+    for (const statement of statements) {
+      await this.raw(statement);
+    }
+  }
+
+  async down(): Promise<void> {
+    await this.dropTable('posts');
+    await this.dropTable('users');
+  }
+}
+```
+
+**Use cases:**
+
+- **Existing project**: You have an existing database and want to start using js-record migrations
+- **Database first**: Your database schema was created outside of migrations (manual SQL, GUI tools, etc.)
+- **Migration from another ORM**: You're migrating from another framework and need to capture the current state
+- **Team onboarding**: Create a baseline migration so new developers can set up the database quickly
+
+**Important notes:**
+
+- This command only captures the structure, not the data
+- The `migrations` table is automatically excluded
+- Review the generated migration before running it
+- The `down()` method will drop ALL tables - use with caution!
+- After running this, all future schema changes should be done through new migrations
+
+### migration:create (detailed)
+
+Create a new migration file with a timestamp and proper structure.
+
 **Aliases:** `migrate:create`, `g:migration`
 
 **Usage:**
