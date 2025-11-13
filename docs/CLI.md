@@ -55,6 +55,52 @@ npm install -g js-record
 js-record migration:create create_users_table
 ```
 
+## Configuration
+
+Before running migrations, you need to configure your database connection.
+
+### Option 1: Configuration File (Recommended)
+
+Create a `js-record.config.js` file in your project root:
+
+```javascript
+module.exports = {
+  adapter: 'postgres',
+  host: 'localhost',
+  port: 5432,
+  database: 'myapp_dev',
+  user: 'postgres',
+  password: 'postgres',
+};
+```
+
+For SQLite:
+
+```javascript
+module.exports = {
+  adapter: 'sqlite',
+  filename: './database.db',
+};
+```
+
+### Option 2: Environment Variables
+
+Set these environment variables:
+
+```bash
+# PostgreSQL
+DB_ADAPTER=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=myapp_dev
+DB_USER=postgres
+DB_PASSWORD=postgres
+
+# SQLite
+DB_ADAPTER=sqlite
+DB_FILENAME=./database.db
+```
+
 ## Commands
 
 ### migration:create
@@ -126,6 +172,111 @@ export default class CreateUsersTable extends Migration {
   }
 }
 ```
+
+### migrate / migrate:up
+
+Run all pending migrations that haven't been executed yet.
+
+**Aliases:** `migrate`, `migrate:up`, `up`
+
+**Usage:**
+
+```bash
+js-record migrate
+js-record migrate:up
+```
+
+**What it does:**
+
+1. Connects to your database
+2. Creates a `migrations` table if it doesn't exist (tracks which migrations have run)
+3. Loads all migration files from `migrations/` directory
+4. Runs any migrations that haven't been executed yet
+5. Records each migration with a batch number
+
+**Example output:**
+
+```
+Loading database configuration...
+Connecting to postgres database...
+Loading migrations...
+Found 3 migration(s)
+
+Running pending migrations...
+Running migration: 20250112120000_create_users_table
+✓ Migrated: 20250112120000_create_users_table
+Running migration: 20250112120100_create_posts_table
+✓ Migrated: 20250112120100_create_posts_table
+
+✓ Successfully ran 2 migration(s)
+```
+
+### migrate:down
+
+Rollback the last batch (or multiple batches) of migrations.
+
+**Aliases:** `migrate:down`, `rollback`, `down`
+
+**Usage:**
+
+```bash
+# Rollback the last batch
+js-record migrate:down
+
+# Rollback the last 2 batches
+js-record migrate:down 2
+```
+
+**What it does:**
+
+1. Connects to your database
+2. Finds the most recent batch of migrations
+3. Runs the `down()` method for each migration in reverse order
+4. Removes the migration records from the tracking table
+
+### migrate:status
+
+Show the status of all migrations (which have run and which are pending).
+
+**Aliases:** `migrate:status`, `status`
+
+**Usage:**
+
+```bash
+js-record migrate:status
+```
+
+**Example output:**
+
+```
+Loading database configuration...
+Connecting to postgres database...
+Loading migrations...
+
+Migration Status:
+
+Status | Batch | Name
+-------|-------|-----
+  ✓    |   1   | 20250112120000_create_users_table
+  ✓    |   1   | 20250112120100_create_posts_table
+  ○    |   -   | 20250112120200_add_slug_to_posts
+
+2 completed, 1 pending
+```
+
+### migrate:reset
+
+Rollback ALL migrations. This will run the `down()` method for every migration that has been executed.
+
+**Aliases:** `migrate:reset`, `reset`
+
+**Usage:**
+
+```bash
+js-record migrate:reset
+```
+
+**Warning:** This will undo all migrations and may result in data loss. Use with caution!
 
 ### help
 

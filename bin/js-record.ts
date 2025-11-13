@@ -6,6 +6,12 @@
  */
 
 import { createMigration } from './migration-create';
+import {
+  runMigrations,
+  rollbackMigrations,
+  migrationStatus,
+  resetMigrations,
+} from './migration-runner';
 
 const command = process.argv[2];
 const args = process.argv.slice(3);
@@ -19,12 +25,40 @@ Usage:
 
 Commands:
   migration:create [name]    Create a new migration file
+  migrate                    Run pending migrations
+  migrate:up                 Run pending migrations (alias)
+  migrate:down [steps]       Rollback migrations (default: 1 batch)
+  migrate:status             Show migration status
+  migrate:reset              Rollback all migrations
   help                       Show this help message
 
 Examples:
   js-record migration:create create_users_table
-  js-record migration:create add_status_to_users
-  js-record help
+  js-record migrate
+  js-record migrate:down
+  js-record migrate:down 2
+  js-record migrate:status
+  js-record migrate:reset
+
+Database Configuration:
+  Create a js-record.config.js file in your project root:
+  
+    module.exports = {
+      adapter: 'postgres',
+      host: 'localhost',
+      port: 5432,
+      database: 'myapp_dev',
+      user: 'postgres',
+      password: 'postgres'
+    }
+  
+  Or use environment variables:
+    DB_ADAPTER=postgres
+    DB_HOST=localhost
+    DB_PORT=5432
+    DB_NAME=myapp_dev
+    DB_USER=postgres
+    DB_PASSWORD=postgres
 
 For more information, visit: https://github.com/benwyrosdick/js-record
 `);
@@ -36,6 +70,30 @@ async function runCommand(): Promise<void> {
     case 'migrate:create':
     case 'g:migration':
       await createMigration(args[0]);
+      break;
+
+    case 'migrate':
+    case 'migrate:up':
+    case 'up':
+      await runMigrations();
+      break;
+
+    case 'migrate:down':
+    case 'rollback':
+    case 'down': {
+      const steps = args[0] ? parseInt(args[0]) : 1;
+      await rollbackMigrations(steps);
+      break;
+    }
+
+    case 'migrate:status':
+    case 'status':
+      await migrationStatus();
+      break;
+
+    case 'migrate:reset':
+    case 'reset':
+      await resetMigrations();
       break;
 
     case 'help':

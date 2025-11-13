@@ -403,6 +403,42 @@ export default class CreateUsersTable extends Migration {
 
 #### Running Migrations
 
+**Using the CLI (Recommended):**
+
+First, configure your database connection by creating `js-record.config.js`:
+
+```javascript
+module.exports = {
+  adapter: 'postgres',
+  host: 'localhost',
+  port: 5432,
+  database: 'myapp_dev',
+  user: 'postgres',
+  password: 'postgres',
+};
+```
+
+Then run migrations:
+
+```bash
+# Run all pending migrations
+npx js-record migrate
+
+# Check migration status
+npx js-record migrate:status
+
+# Rollback last batch
+npx js-record migrate:down
+
+# Rollback last 2 batches
+npx js-record migrate:down 2
+
+# Reset all migrations
+npx js-record migrate:reset
+```
+
+**Programmatic API:**
+
 ```typescript
 import { MigrationRunner } from 'js-record';
 

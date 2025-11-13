@@ -37,6 +37,30 @@ Enter migration name (e.g., create_users_table, add_slug_to_posts):
   Location: /path/to/project/migrations/20250112120000_create_users_table.ts
 ```
 
+## Database Configuration
+
+Before running migrations, create a `js-record.config.js` file in your project root:
+
+```javascript
+module.exports = {
+  adapter: 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: process.env.DB_NAME || 'myapp_dev',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+};
+```
+
+Or for SQLite:
+
+```javascript
+module.exports = {
+  adapter: 'sqlite',
+  filename: './database.db',
+};
+```
+
 ## Recommended Setup
 
 Add these scripts to your `package.json`:
@@ -45,9 +69,10 @@ Add these scripts to your `package.json`:
 {
   "scripts": {
     "db:migrate:create": "js-record migration:create",
-    "db:migrate": "bun run scripts/migrate.ts",
-    "db:rollback": "bun run scripts/rollback.ts",
-    "db:reset": "bun run scripts/reset.ts"
+    "db:migrate": "js-record migrate",
+    "db:migrate:down": "js-record migrate:down",
+    "db:migrate:status": "js-record migrate:status",
+    "db:migrate:reset": "js-record migrate:reset"
   }
 }
 ```
@@ -61,116 +86,80 @@ bun run db:migrate:create add_email_to_users
 # Run migrations
 bun run db:migrate
 
-# Rollback last migration
-bun run db:rollback
+# Check status
+bun run db:migrate:status
+
+# Rollback last batch
+bun run db:migrate:down
+
+# Rollback last 2 batches
+bun run db:migrate:down 2
 
 # Reset all migrations
-bun run db:reset
+bun run db:migrate:reset
 ```
 
-## Example Migration Scripts
+## How the Migration Tracking Works
 
-### scripts/migrate.ts
+js-record automatically creates a `migrations` table in your database to track which migrations have been run:
 
-```typescript
-import { PostgresAdapter } from 'js-record';
-import { MigrationRunner } from 'js-record';
-import { readdirSync } from 'fs';
-import { join } from 'path';
-
-const adapter = new PostgresAdapter({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'myapp_dev',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-});
-
-async function migrate() {
-  await adapter.connect();
-
-  const runner = new MigrationRunner(adapter);
-  const migrationsDir = join(process.cwd(), 'migrations');
-
-  // Load all migration files
-  const files = readdirSync(migrationsDir)
-    .filter(f => f.endsWith('.ts'))
-    .sort();
-
-  const migrations = new Map();
-  for (const file of files) {
-    const name = file.replace('.ts', '');
-    const migration = await import(join(migrationsDir, file));
-    migrations.set(name, migration.default);
-  }
-
-  console.log('Running migrations...');
-  const ran = await runner.up(migrations);
-
-  if (ran.length > 0) {
-    console.log(`✓ Ran ${ran.length} migration(s)`);
-    ran.forEach(m => console.log(`  - ${m}`));
-  } else {
-    console.log('No pending migrations');
-  }
-
-  await adapter.disconnect();
-}
-
-migrate().catch(console.error);
+```sql
+CREATE TABLE migrations (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL UNIQUE,
+  batch INTEGER NOT NULL,
+  migration_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
-### scripts/rollback.ts
+- **name**: The migration filename (e.g., `20250112120000_create_users_table`)
+- **batch**: A number that groups migrations that ran together
+- **migration_time**: When the migration was executed
 
-```typescript
-import { PostgresAdapter } from 'js-record';
-import { MigrationRunner } from 'js-record';
-import { readdirSync } from 'fs';
-import { join } from 'path';
+When you run `js-record migrate`:
 
-const adapter = new PostgresAdapter({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'myapp_dev',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-});
+1. It checks which migrations are already in the `migrations` table
+2. It runs only the pending migrations
+3. Each new migration is recorded with the current batch number
 
-async function rollback() {
-  await adapter.connect();
+When you run `js-record migrate:down`:
 
-  const runner = new MigrationRunner(adapter);
-  const migrationsDir = join(process.cwd(), 'migrations');
-
-  // Load all migration files
-  const files = readdirSync(migrationsDir)
-    .filter(f => f.endsWith('.ts'))
-    .sort();
-
-  const migrations = new Map();
-  for (const file of files) {
-    const name = file.replace('.ts', '');
-    const migration = await import(join(migrationsDir, file));
-    migrations.set(name, migration.default);
-  }
-
-  console.log('Rolling back last batch...');
-  const rolledBack = await runner.rollback(migrations, 1);
-
-  if (rolledBack.length > 0) {
-    console.log(`✓ Rolled back ${rolledBack.length} migration(s)`);
-    rolledBack.forEach(m => console.log(`  - ${m}`));
-  } else {
-    console.log('No migrations to rollback');
-  }
-
-  await adapter.disconnect();
-}
-
-rollback().catch(console.error);
-```
+1. It finds the highest batch number
+2. It runs the `down()` method for all migrations in that batch (in reverse order)
+3. It removes those migrations from the tracking table
 
 ## Common Workflows
+
+### Setting Up a New Project
+
+```bash
+# 1. Install js-record
+bun add js-record
+
+# 2. Create database config
+cat > js-record.config.js << 'EOF'
+module.exports = {
+  adapter: 'postgres',
+  host: 'localhost',
+  port: 5432,
+  database: 'myapp_dev',
+  user: 'postgres',
+  password: 'postgres',
+};
+EOF
+
+# 3. Create your first migration
+npx js-record migration:create create_users_table
+
+# 4. Edit the migration file
+# migrations/20250112120000_create_users_table.ts
+
+# 5. Run the migration
+npx js-record migrate
+
+# 6. Check status
+npx js-record migrate:status
+```
 
 ### Creating a new table
 
@@ -180,7 +169,7 @@ npx js-record migration:create create_posts_table
 
 # 2. Edit migrations/YYYYMMDDHHMMSS_create_posts_table.ts
 # 3. Run migration
-bun run db:migrate
+npx js-record migrate
 ```
 
 ### Adding a column
@@ -194,7 +183,7 @@ npx js-record migration:create add_published_at_to_posts
 bun run db:migrate
 ```
 
-### Complete Example
+### Complete Example with Multiple Migrations
 
 ```bash
 # Set up a new project
@@ -202,10 +191,17 @@ mkdir my-app && cd my-app
 bun init -y
 bun add js-record
 
-# Create migration scripts directory
-mkdir scripts
-
-# Add package.json scripts (see above)
+# Create database config
+cat > js-record.config.js << 'EOF'
+module.exports = {
+  adapter: 'postgres',
+  host: 'localhost',
+  port: 5432,
+  database: 'myapp_dev',
+  user: 'postgres',
+  password: 'postgres',
+};
+EOF
 
 # Create your first migration
 npx js-record migration:create create_users_table
@@ -214,19 +210,31 @@ npx js-record migration:create create_users_table
 # migrations/20250112120000_create_users_table.ts
 
 # Run the migration
-bun run db:migrate
+npx js-record migrate
+# Output:
+# ✓ Migrated: 20250112120000_create_users_table
+# ✓ Successfully ran 1 migration(s)
+
+# Check status
+npx js-record migrate:status
+# Status | Batch | Name
+# -------|-------|-----
+#   ✓    |   1   | 20250112120000_create_users_table
 
 # Create another migration
 npx js-record migration:create create_posts_table
 
 # Run migrations again
-bun run db:migrate
+npx js-record migrate
+# ✓ Migrated: 20250112120100_create_posts_table
 
 # Oops, made a mistake? Rollback!
-bun run db:rollback
+npx js-record migrate:down
+# ✓ Rolled back: 20250112120100_create_posts_table
 
 # Fix the migration and re-run
-bun run db:migrate
+npx js-record migrate
+# ✓ Migrated: 20250112120100_create_posts_table
 ```
 
 ## Tips
