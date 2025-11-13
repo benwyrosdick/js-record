@@ -5,15 +5,6 @@
  * Command-line interface for js-record ORM
  */
 
-import { createMigration } from './migration-create';
-import {
-  runMigrations,
-  rollbackMigrations,
-  migrationStatus,
-  resetMigrations,
-} from './migration-runner';
-import { initMigration } from './schema-dump';
-
 const command = process.argv[2];
 const args = process.argv.slice(3);
 
@@ -27,6 +18,7 @@ Usage:
 Commands:
   migration:create [name]    Create a new migration file
   migration:init             Generate migration from existing database schema
+  config:init [adapter]      Create database configuration file (sqlite|postgres, default: sqlite)
   migrate                    Run pending migrations
   migrate:up                 Run pending migrations (alias)
   migrate:down [steps]       Rollback migrations (default: 1 batch)
@@ -37,6 +29,8 @@ Commands:
 Examples:
   js-record migration:create create_users_table
   js-record migration:init
+  js-record config:init
+  js-record config:init postgres
   js-record migrate
   js-record migrate:down
   js-record migrate:down 2
@@ -44,16 +38,10 @@ Examples:
   js-record migrate:reset
 
 Database Configuration:
-  Create a js-record.config.js file in your project root:
+  Create a database configuration file:
   
-    module.exports = {
-      adapter: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      database: 'myapp_dev',
-      user: 'postgres',
-      password: 'postgres'
-    }
+    js-record config:init          # Creates config/database.ts with SQLite
+    js-record config:init postgres # Creates config/database.ts with PostgreSQL
   
   Or use environment variables:
     DB_ADAPTER=postgres
@@ -71,39 +59,57 @@ async function runCommand(): Promise<void> {
   switch (command) {
     case 'migration:create':
     case 'migrate:create':
-    case 'g:migration':
+    case 'g:migration': {
+      const { createMigration } = await import('./migration-create');
       await createMigration(args[0]);
       break;
+    }
 
     case 'migration:init':
     case 'migrate:init':
-    case 'init':
+    case 'init': {
+      const { initMigration } = await import('./schema-dump');
       await initMigration();
       break;
+    }
+
+    case 'config:init':
+    case 'init:config': {
+      const { initConfig } = await import('./config-init');
+      await initConfig(args);
+      break;
+    }
 
     case 'migrate':
     case 'migrate:up':
-    case 'up':
+    case 'up': {
+      const { runMigrations } = await import('./migration-runner');
       await runMigrations();
       break;
+    }
 
     case 'migrate:down':
     case 'rollback':
     case 'down': {
       const steps = args[0] ? parseInt(args[0]) : 1;
+      const { rollbackMigrations } = await import('./migration-runner');
       await rollbackMigrations(steps);
       break;
     }
 
     case 'migrate:status':
-    case 'status':
+    case 'status': {
+      const { migrationStatus } = await import('./migration-runner');
       await migrationStatus();
       break;
+    }
 
     case 'migrate:reset':
-    case 'reset':
+    case 'reset': {
+      const { resetMigrations } = await import('./migration-runner');
       await resetMigrations();
       break;
+    }
 
     case 'help':
     case '--help':

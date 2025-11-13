@@ -15,10 +15,17 @@ import {
 
 export abstract class DatabaseAdapter {
   protected connected: boolean = false;
-  protected config: ConnectionConfig;
+  protected _config: ConnectionConfig;
 
   constructor(config: ConnectionConfig) {
-    this.config = config;
+    this._config = config;
+  }
+
+  /**
+   * Get the adapter configuration
+   */
+  get config(): ConnectionConfig {
+    return this._config;
   }
 
   /**
@@ -83,7 +90,7 @@ export abstract class DatabaseAdapter {
    * Get the current database name
    */
   getDatabaseName(): string {
-    return this.config.database;
+    return this._config.database;
   }
 
   /**

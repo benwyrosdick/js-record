@@ -4,7 +4,6 @@
  * Uses Bun's built-in SQLite support
  */
 
-import { Database } from 'bun:sqlite';
 import { DatabaseAdapter } from './Adapter';
 import {
   ConnectionConfig,
@@ -18,8 +17,22 @@ import {
   PreparedStatement,
 } from './types';
 
+// Lazy load bun's sqlite module to avoid import errors in Node.js
+let Database: any = null;
+async function getDatabase() {
+  if (!Database) {
+    try {
+      const bunModule = await import('bun:sqlite');
+      Database = bunModule.Database;
+    } catch (error) {
+      throw new Error('SqliteAdapter requires Bun runtime. Please run with Bun.');
+    }
+  }
+  return Database;
+}
+
 export class SqliteAdapter extends DatabaseAdapter {
-  private db: Database | null = null;
+  private db: any = null;
 
   constructor(config: ConnectionConfig) {
     super(config);
@@ -36,6 +49,7 @@ export class SqliteAdapter extends DatabaseAdapter {
     try {
       // For SQLite, the 'database' config is the file path
       // Use ':memory:' for in-memory database
+      const Database = await getDatabase();
       this.db = new Database(this.config.database, {
         create: true,
         readwrite: true,
@@ -305,10 +319,10 @@ export class SqliteAdapter extends DatabaseAdapter {
  */
 class SqliteTransaction implements Transaction {
   private active: boolean = true;
-  private db: Database;
+  private db: any;
   private inTransaction: boolean = false;
 
-  constructor(db: Database) {
+  constructor(db: any) {
     this.db = db;
     // Begin transaction
     this.db.run('BEGIN');

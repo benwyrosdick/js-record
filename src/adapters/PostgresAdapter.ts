@@ -4,7 +4,6 @@
  * Uses Bun's built-in SQL support
  */
 
-import { sql } from 'bun';
 import { DatabaseAdapter } from './Adapter';
 import {
   ConnectionConfig,
@@ -17,6 +16,20 @@ import {
   FieldInfo,
   PreparedStatement,
 } from './types';
+
+// Lazy load bun's sql module to avoid import errors in Node.js
+let sql: any = null;
+async function getSql() {
+  if (!sql) {
+    try {
+      const bunModule = await import('bun');
+      sql = bunModule.sql;
+    } catch (error) {
+      throw new Error('PostgresAdapter requires Bun runtime. Please run with Bun.');
+    }
+  }
+  return sql;
+}
 
 export class PostgresAdapter extends DatabaseAdapter {
   private originalDatabaseUrl: string | undefined;
@@ -67,6 +80,7 @@ export class PostgresAdapter extends DatabaseAdapter {
       process.env.DATABASE_URL = this.connectionString;
 
       // Test the connection
+      const sql = await getSql();
       await sql.unsafe('SELECT 1');
       this.connected = true;
     } catch (error) {
@@ -86,6 +100,7 @@ export class PostgresAdapter extends DatabaseAdapter {
   async disconnect(): Promise<void> {
     if (this.connected) {
       try {
+        const sql = await getSql();
         await sql.end();
       } catch (error) {
         // Ignore errors on disconnect
@@ -110,6 +125,7 @@ export class PostgresAdapter extends DatabaseAdapter {
 
     try {
       // Bun's sql.unsafe() supports parameterized queries
+      const sql = await getSql();
       const result: any = await sql.unsafe(sqlQuery, params);
 
       const rows = (Array.isArray(result) ? result : []) as T[];
@@ -144,6 +160,7 @@ export class PostgresAdapter extends DatabaseAdapter {
     this.ensureConnected();
 
     try {
+      const sql = await getSql();
       const result: any = await sql.unsafe(sqlQuery, params);
 
       let rowCount = 0;
@@ -464,7 +481,8 @@ class PostgresTransaction implements Transaction {
       this.queries.push({ query: sqlQuery, params });
 
       // Execute immediately using sql.transaction for isolation
-      const result: any = await sql.transaction(async tx => {
+      const sql = await getSql();
+      const result: any = await sql.transaction(async (tx: any) => {
         return await tx.unsafe(sqlQuery, params);
       });
 
@@ -500,7 +518,8 @@ class PostgresTransaction implements Transaction {
     try {
       this.queries.push({ query: sqlQuery, params });
 
-      const result: any = await sql.transaction(async tx => {
+      const sql = await getSql();
+      const result: any = await sql.transaction(async (tx: any) => {
         return await tx.unsafe(sqlQuery, params);
       });
 

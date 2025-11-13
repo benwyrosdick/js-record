@@ -12,9 +12,11 @@ interface DatabaseConfig {
   // Postgres options
   host?: string;
   port?: number;
-  database?: string;
+  database: string;
   user?: string;
   password?: string;
+  connectionString?: string;
+  ssl?: boolean;
   // SQLite options
   filename?: string;
 }
@@ -23,8 +25,10 @@ interface DatabaseConfig {
  * Load database configuration from environment or config file
  */
 export function loadDatabaseConfig(): DatabaseConfig {
-  // First check for js-record.config.js/ts
+  // First check for config/database.ts (preferred location)
   const configPaths = [
+    join(process.cwd(), 'config/database.ts'),
+    join(process.cwd(), 'config/database.js'),
     join(process.cwd(), 'js-record.config.js'),
     join(process.cwd(), 'js-record.config.ts'),
     join(process.cwd(), 'database.config.js'),
@@ -35,8 +39,37 @@ export function loadDatabaseConfig(): DatabaseConfig {
     if (existsSync(configPath)) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const config = require(configPath);
-        return config.default || config;
+        const configModule = require(configPath);
+        const config = configModule.default || configModule;
+
+        // Handle new format: { config: ConnectionConfig, adapter: DatabaseAdapter }
+        if (config.config && typeof config.config === 'object') {
+          return config.config;
+        }
+
+        // Handle legacy format: { adapter: PostgresAdapter | SqliteAdapter }
+        if (config.adapter && typeof config.adapter === 'function') {
+          console.warn(
+            'Legacy adapter format detected. Please update config to export both config and adapter.'
+          );
+          // For now, we need to instantiate adapter to get its config
+          try {
+            // Create a temporary instance to extract config
+            const tempAdapter = new config.adapter({});
+            const adapterConfig = tempAdapter.config || {};
+            return {
+              adapter: adapterConfig.adapter || 'postgres',
+              ...adapterConfig,
+            };
+          } catch (error) {
+            console.warn(`Failed to extract config from adapter: ${error}`);
+            // Fall back to environment variables
+            break;
+          }
+        }
+
+        // Handle old format: direct config object
+        return config;
       } catch (error) {
         console.warn(`Failed to load config from ${configPath}:`, error);
       }
@@ -49,6 +82,7 @@ export function loadDatabaseConfig(): DatabaseConfig {
   if (adapter === 'sqlite') {
     return {
       adapter: 'sqlite',
+      database: process.env.DB_FILENAME || process.env.DATABASE_URL || './database.db',
       filename: process.env.DB_FILENAME || process.env.DATABASE_URL || './database.db',
     };
   }
@@ -64,70 +98,51 @@ export function loadDatabaseConfig(): DatabaseConfig {
 }
 
 /**
- * Create database adapter from config
+ * Create database adapter from configuration
  */
 export async function createAdapter(config: DatabaseConfig): Promise<DatabaseAdapter> {
-  if (config.adapter === 'sqlite') {
-    const { SqliteAdapter } = await import('../src/adapters/SqliteAdapter');
-    return new SqliteAdapter({
-      database: config.filename || './database.db',
-    });
-  }
+  const { PostgresAdapter, SqliteAdapter } = await import('../src/adapters');
 
-  const { PostgresAdapter } = await import('../src/adapters/PostgresAdapter');
-  return new PostgresAdapter({
-    host: config.host || 'localhost',
-    port: config.port || 5432,
-    database: config.database || 'postgres',
-    user: config.user || 'postgres',
-    password: config.password || 'postgres',
-  });
+  switch (config.adapter) {
+    case 'postgres':
+      return new PostgresAdapter(config);
+    case 'sqlite':
+      return new SqliteAdapter(config);
+    default:
+      throw new Error(`Unsupported adapter: ${config.adapter}`);
+  }
 }
 
 /**
- * Load all migrations from the migrations directory
+ * Load migration files from the migrations directory
  */
-export async function loadMigrations(): Promise<Map<string, any>> {
+export function loadMigrations(): Map<string, any> {
   const migrationsDir = join(process.cwd(), 'migrations');
 
   if (!existsSync(migrationsDir)) {
-    throw new Error(
-      `Migrations directory not found: ${migrationsDir}\n` +
-        'Run "js-record migration:create" to create your first migration.'
-    );
+    console.log('No migrations directory found. Creating one...');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('fs').mkdirSync(migrationsDir, { recursive: true });
+    return new Map();
   }
 
   const files = readdirSync(migrationsDir)
-    .filter(f => f.endsWith('.ts') || f.endsWith('.js'))
+    .filter(file => file.endsWith('.ts') || file.endsWith('.js'))
     .sort();
 
-  if (files.length === 0) {
-    throw new Error(
-      'No migration files found in migrations directory.\n' +
-        'Run "js-record migration:create" to create your first migration.'
-    );
-  }
-
-  const migrations = new Map();
+  const migrations = new Map<string, any>();
 
   for (const file of files) {
-    const name = file.replace(/\.(ts|js)$/, '');
-    const fullPath = join(migrationsDir, file);
-
     try {
-      // Dynamic import for both .ts and .js files
-      const module = require(fullPath);
-      const MigrationClass = module.default || module;
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const migrationModule = require(join(migrationsDir, file));
+      const migrationClass = migrationModule.default || migrationModule;
 
-      if (!MigrationClass) {
-        console.warn(`Warning: No default export found in ${file}`);
-        continue;
-      }
-
-      migrations.set(name, MigrationClass);
+      // Extract timestamp from filename (YYYYMMDDHHMMSS_description.ext)
+      const timestamp = file.split('_')[0];
+      migrations.set(timestamp, migrationClass);
     } catch (error) {
-      console.error(`Error loading migration ${file}:`, error);
-      throw error;
+      console.warn(`Failed to load migration ${file}:`, error);
     }
   }
 
@@ -135,7 +150,7 @@ export async function loadMigrations(): Promise<Map<string, any>> {
 }
 
 /**
- * Run pending migrations
+ * Run all pending migrations
  */
 export async function runMigrations(): Promise<void> {
   console.log('Loading database configuration...');
@@ -147,23 +162,69 @@ export async function runMigrations(): Promise<void> {
     await adapter.connect();
 
     console.log('Loading migrations...');
-    const migrations = await loadMigrations();
-    console.log(`Found ${migrations.size} migration(s)\n`);
+    const migrations = loadMigrations();
+    console.log(`Found ${migrations.size} migration(s)`);
 
-    const { MigrationRunner } = await import('../src/migrations/MigrationRunner');
-    const runner = new MigrationRunner(adapter);
-
-    console.log('Running pending migrations...');
-    const ran = await runner.up(migrations);
-
-    if (ran.length === 0) {
-      console.log('\n✓ Database is up to date');
-    } else {
-      console.log(`\n✓ Successfully ran ${ran.length} migration(s)`);
+    if (migrations.size === 0) {
+      console.log('No migrations to run.');
+      return;
     }
-  } catch (error) {
-    console.error('\n✗ Migration failed:', error);
-    process.exit(1);
+
+    // Create migrations table if it doesn't exist
+    await adapter.execute(`
+      CREATE TABLE IF NOT EXISTS migrations (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        batch INTEGER NOT NULL,
+        executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Get executed migrations
+    const result = await adapter.query('SELECT name FROM migrations ORDER BY executed_at');
+    const executedMigrations = new Set(result.rows.map((row: any) => row.name));
+
+    // Filter pending migrations
+    const pendingMigrations = Array.from(migrations.entries())
+      .filter(([timestamp]) => !executedMigrations.has(timestamp))
+      .sort(([a], [b]) => a.localeCompare(b));
+
+    if (pendingMigrations.length === 0) {
+      console.log('No pending migrations.');
+      return;
+    }
+
+    console.log(`Running ${pendingMigrations.length} pending migration(s)...`);
+
+    // Get current batch number
+    const batchResult = await adapter.query(
+      'SELECT COALESCE(MAX(batch), 0) as max_batch FROM migrations'
+    );
+    const currentBatch = (batchResult.rows[0]?.max_batch || 0) + 1;
+
+    // Run migrations
+    for (const [timestamp, MigrationClass] of pendingMigrations) {
+      console.log(`Running migration: ${timestamp}`);
+
+      try {
+        const migration = new MigrationClass();
+        await migration.up();
+
+        // Record migration
+        await adapter.execute('INSERT INTO migrations (name, batch) VALUES (?, ?)', [
+          timestamp,
+          currentBatch,
+        ]);
+
+        console.log(`✓ Migrated: ${timestamp}`);
+      } catch (error) {
+        console.error(`✗ Migration failed: ${timestamp}`);
+        console.error(error);
+        throw error;
+      }
+    }
+
+    console.log(`✓ Successfully ran ${pendingMigrations.length} migration(s)`);
   } finally {
     await adapter.disconnect();
   }
@@ -182,22 +243,69 @@ export async function rollbackMigrations(steps: number = 1): Promise<void> {
     await adapter.connect();
 
     console.log('Loading migrations...');
-    const migrations = await loadMigrations();
+    const migrations = loadMigrations();
 
-    const { MigrationRunner } = await import('../src/migrations/MigrationRunner');
-    const runner = new MigrationRunner(adapter);
+    // Get migrations to rollback (last N batches)
+    const result = await adapter.query(`
+      SELECT DISTINCT batch 
+      FROM migrations 
+      ORDER BY batch DESC 
+      LIMIT ${steps}
+    `);
 
-    console.log(`Rolling back last ${steps} batch(es)...\n`);
-    const rolledBack = await runner.rollback(migrations, steps);
-
-    if (rolledBack.length === 0) {
-      console.log('\n✓ No migrations to rollback');
-    } else {
-      console.log(`\n✓ Successfully rolled back ${rolledBack.length} migration(s)`);
+    if (result.rows.length === 0) {
+      console.log('No migrations to rollback.');
+      return;
     }
-  } catch (error) {
-    console.error('\n✗ Rollback failed:', error);
-    process.exit(1);
+
+    const batchesToRollback = result.rows.map((row: any) => row.batch);
+
+    // Get migrations in those batches
+    const migrationsToRollback = await adapter.query(
+      `
+      SELECT name 
+      FROM migrations 
+      WHERE batch IN (${batchesToRollback.map(() => '?').join(',')})
+      ORDER BY executed_at DESC
+    `,
+      batchesToRollback
+    );
+
+    if (migrationsToRollback.rows.length === 0) {
+      console.log('No migrations to rollback.');
+      return;
+    }
+
+    console.log(`Rolling back ${migrationsToRollback.rows.length} migration(s)...`);
+
+    // Rollback migrations in reverse order
+    for (const row of migrationsToRollback.rows) {
+      const timestamp = row.name;
+      const MigrationClass = migrations.get(timestamp);
+
+      if (!MigrationClass) {
+        console.warn(`Migration class not found: ${timestamp}`);
+        continue;
+      }
+
+      console.log(`Rolling back migration: ${timestamp}`);
+
+      try {
+        const migration = new MigrationClass();
+        await migration.down();
+
+        // Remove migration record
+        await adapter.execute('DELETE FROM migrations WHERE name = ?', [timestamp]);
+
+        console.log(`✓ Rolled back: ${timestamp}`);
+      } catch (error) {
+        console.error(`✗ Rollback failed: ${timestamp}`);
+        console.error(error);
+        throw error;
+      }
+    }
+
+    console.log(`✓ Successfully rolled back ${migrationsToRollback.rows.length} migration(s)`);
   } finally {
     await adapter.disconnect();
   }
@@ -216,29 +324,36 @@ export async function migrationStatus(): Promise<void> {
     await adapter.connect();
 
     console.log('Loading migrations...');
-    const migrations = await loadMigrations();
+    const migrations = loadMigrations();
 
-    const { MigrationRunner } = await import('../src/migrations/MigrationRunner');
-    const runner = new MigrationRunner(adapter);
-    const statuses = await runner.status(migrations);
+    // Create migrations table if it doesn't exist
+    await adapter.execute(`
+      CREATE TABLE IF NOT EXISTS migrations (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        batch INTEGER NOT NULL,
+        executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Get executed migrations
+    const result = await adapter.query('SELECT name, batch FROM migrations ORDER BY executed_at');
+    const executedMigrations = new Map(result.rows.map((row: any) => [row.name, row.batch]));
 
     console.log('\nMigration Status:\n');
     console.log('Status | Batch | Name');
     console.log('-------|-------|-----');
 
-    for (const status of statuses) {
-      const icon = status.migrated ? '  ✓   ' : '  ○   ';
-      const batch = status.batch ? `  ${status.batch}  ` : '  -  ';
-      console.log(`${icon} |${batch} | ${status.name}`);
+    for (const [timestamp] of Array.from(migrations.entries()).sort()) {
+      const status = executedMigrations.has(timestamp) ? '✓' : '○';
+      const batch = executedMigrations.get(timestamp) || '-';
+      console.log(`  ${status}    |  ${batch.toString().padStart(3)} | ${timestamp}`);
     }
 
-    const pending = statuses.filter((s: any) => !s.migrated).length;
-    const completed = statuses.filter((s: any) => s.migrated).length;
+    const completed = executedMigrations.size;
+    const pending = migrations.size - completed;
 
     console.log(`\n${completed} completed, ${pending} pending`);
-  } catch (error) {
-    console.error('\n✗ Failed to get status:', error);
-    process.exit(1);
   } finally {
     await adapter.disconnect();
   }
@@ -257,22 +372,46 @@ export async function resetMigrations(): Promise<void> {
     await adapter.connect();
 
     console.log('Loading migrations...');
-    const migrations = await loadMigrations();
+    const migrations = loadMigrations();
 
-    const { MigrationRunner } = await import('../src/migrations/MigrationRunner');
-    const runner = new MigrationRunner(adapter);
+    // Get all executed migrations
+    const result = await adapter.query('SELECT name FROM migrations ORDER BY executed_at DESC');
 
-    console.log('Resetting all migrations...\n');
-    const reset = await runner.reset(migrations);
-
-    if (reset.length === 0) {
-      console.log('\n✓ No migrations to reset');
-    } else {
-      console.log(`\n✓ Successfully reset ${reset.length} migration(s)`);
+    if (result.rows.length === 0) {
+      console.log('No migrations to reset.');
+      return;
     }
-  } catch (error) {
-    console.error('\n✗ Reset failed:', error);
-    process.exit(1);
+
+    console.log(`Resetting ${result.rows.length} migration(s)...`);
+
+    // Rollback all migrations in reverse order
+    for (const row of result.rows) {
+      const timestamp = row.name;
+      const MigrationClass = migrations.get(timestamp);
+
+      if (!MigrationClass) {
+        console.warn(`Migration class not found: ${timestamp}`);
+        continue;
+      }
+
+      console.log(`Rolling back migration: ${timestamp}`);
+
+      try {
+        const migration = new MigrationClass();
+        await migration.down();
+
+        // Remove migration record
+        await adapter.execute('DELETE FROM migrations WHERE name = ?', [timestamp]);
+
+        console.log(`✓ Rolled back: ${timestamp}`);
+      } catch (error) {
+        console.error(`✗ Rollback failed: ${timestamp}`);
+        console.error(error);
+        throw error;
+      }
+    }
+
+    console.log(`✓ Successfully reset ${result.rows.length} migration(s)`);
   } finally {
     await adapter.disconnect();
   }

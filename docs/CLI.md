@@ -61,27 +61,65 @@ Before running migrations, you need to configure your database connection.
 
 ### Option 1: Configuration File (Recommended)
 
-Create a `js-record.config.js` file in your project root:
+Use the `config:init` command to create a boilerplate configuration:
 
-```javascript
-module.exports = {
+```bash
+# Create SQLite configuration (default)
+js-record config:init
+
+# Create PostgreSQL configuration
+js-record config:init postgres
+```
+
+This creates a `config/database.ts` file with the appropriate adapter configuration:
+
+**SQLite (`config/database.ts`):**
+
+```typescript
+import { SqliteAdapter } from 'js-record';
+
+// Database configuration
+export const config = {
+  adapter: 'sqlite',
+  database: './database.db',
+  filename: './database.db',
+};
+
+// Export configured adapter
+export const adapter = new SqliteAdapter(config);
+export default adapter;
+```
+
+**PostgreSQL (`config/database.ts`):**
+
+```typescript
+import { PostgresAdapter } from 'js-record';
+
+// Database configuration
+export const config = {
   adapter: 'postgres',
   host: 'localhost',
   port: 5432,
-  database: 'myapp_dev',
+  database: 'myapp_development',
   user: 'postgres',
   password: 'postgres',
 };
+
+// Export configured adapter
+export const adapter = new PostgresAdapter(config);
+export default adapter;
 ```
 
-For SQLite:
+**Manual Configuration:**
 
-```javascript
-module.exports = {
-  adapter: 'sqlite',
-  filename: './database.db',
-};
-```
+You can also manually create `config/database.ts` or use legacy formats like `js-record.config.js`. The CLI will look for configuration files in this order:
+
+1. `config/database.ts` (preferred)
+2. `config/database.js`
+3. `js-record.config.js`
+4. `js-record.config.ts`
+5. `database.config.js`
+6. `database.config.ts`
 
 ### Option 2: Environment Variables
 
@@ -102,6 +140,68 @@ DB_FILENAME=./database.db
 ```
 
 ## Commands
+
+### config:init
+
+Create a boilerplate database configuration file.
+
+**Aliases:** `init:config`
+
+**Usage:**
+
+```bash
+# Create SQLite configuration (default)
+js-record config:init
+
+# Create PostgreSQL configuration
+js-record config:init postgres
+```
+
+**What it does:**
+
+1. Creates a `config/` directory if it doesn't exist
+2. Generates a `config/database.ts` file with adapter configuration
+3. Exports both the config object and configured adapter
+4. Supports SQLite (default) and PostgreSQL adapters
+
+**Generated SQLite configuration:**
+
+```typescript
+import { SqliteAdapter } from 'js-record';
+
+export const config = {
+  adapter: 'sqlite',
+  database: './database.db',
+  filename: './database.db',
+};
+
+export const adapter = new SqliteAdapter(config);
+export default adapter;
+```
+
+**Generated PostgreSQL configuration:**
+
+```typescript
+import { PostgresAdapter } from 'js-record';
+
+export const config = {
+  adapter: 'postgres',
+  host: 'localhost',
+  port: 5432,
+  database: 'myapp_development',
+  user: 'postgres',
+  password: 'postgres',
+};
+
+export const adapter = new PostgresAdapter(config);
+export default adapter;
+```
+
+**Error handling:**
+
+- If configuration file already exists, shows error and instructions
+- If invalid adapter specified, shows valid options
+- Creates necessary directories automatically
 
 ### migration:create
 

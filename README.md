@@ -25,7 +25,19 @@ bun add js-record
 
 ### Setting Up a Database Connection
 
-#### PostgreSQL
+#### Option 1: Use the CLI Configuration (Recommended)
+
+```bash
+# Create a database configuration file
+js-record config:init          # SQLite (default)
+js-record config:init postgres   # PostgreSQL
+
+# This creates config/database.ts with your adapter configuration
+```
+
+#### Option 2: Manual Configuration
+
+**PostgreSQL:**
 
 ```typescript
 import { PostgresAdapter } from 'js-record';
@@ -41,7 +53,7 @@ const adapter = new PostgresAdapter({
 await adapter.connect();
 ```
 
-#### SQLite (Bun Native)
+**SQLite (Bun Native):**
 
 ```typescript
 import { SqliteAdapter } from 'js-record';
@@ -350,20 +362,26 @@ try {
 
 Manage your database schema with migrations:
 
-#### Creating Migrations
+# First, set up your database configuration
 
-```bash
+js-record config:init # SQLite (default)
+js-record config:init postgres # PostgreSQL
+
 # Create a new migration
+
 npx js-record migration:create add_status_to_users
-# or with bun
+
+# Or with bun
+
 bunx js-record migration:create add_status_to_users
 
-# Interactive mode (prompts for name)
+# Interactive mode
+
 npx js-record migration:create
 
 # Generate initial migration from existing database schema
+
 npx js-record migration:init
-```
 
 The `migration:init` command is useful when adding js-record to an existing project - it will introspect your current database schema and generate a migration file with all the CREATE TABLE statements.
 

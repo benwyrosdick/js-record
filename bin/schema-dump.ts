@@ -4,7 +4,6 @@
  */
 
 import type { DatabaseAdapter } from '../src/adapters/Adapter';
-import { createAdapter, loadDatabaseConfig } from './migration-runner';
 
 /**
  * Get raw CREATE TABLE statement for PostgreSQL
@@ -181,6 +180,7 @@ async function getSqliteTableSQL(adapter: DatabaseAdapter, tableName: string): P
  */
 export async function dumpSchema(): Promise<string> {
   console.log('Loading database configuration...');
+  const { loadDatabaseConfig, createAdapter } = await import('./migration-runner');
   const config = loadDatabaseConfig();
   const adapter = await createAdapter(config);
 
@@ -190,6 +190,7 @@ export async function dumpSchema(): Promise<string> {
 
     console.log('Retrieving database schema...\n');
     const tables = await adapter.getTables();
+    console.log(`Found ${tables.length} table(s): ${tables.join(', ')}`);
 
     // Filter out the migrations table
     const schemaTables = tables.filter(t => t !== 'migrations');
