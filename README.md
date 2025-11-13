@@ -346,6 +346,89 @@ try {
 }
 ```
 
+### Migrations
+
+Manage your database schema with migrations:
+
+#### Creating Migrations
+
+```bash
+# Using the CLI (recommended for projects that install js-record)
+npx js-record migration:create add_status_to_users
+# or with bun
+bunx js-record migration:create add_status_to_users
+
+# Interactive mode (prompts for name)
+npx js-record migration:create
+```
+
+This creates a new migration file in `migrations/` with a timestamp and stub:
+
+```typescript
+import { Migration } from 'js-record';
+
+export default class AddStatusToUsers extends Migration {
+  async up(): Promise<void> {
+    // Add your migration code here
+  }
+
+  async down(): Promise<void> {
+    // Add your rollback code here
+  }
+}
+```
+
+#### Writing Migrations
+
+```typescript
+export default class CreateUsersTable extends Migration {
+  async up(): Promise<void> {
+    await this.createTable('users', table => {
+      table.increments('id');
+      table.string('name').notNullable();
+      table.string('email').unique().notNullable();
+      table.boolean('active').defaultTo(true);
+      table.timestamps(); // created_at, updated_at
+    });
+
+    // Add indexes
+    await this.createIndex('users', ['email']);
+  }
+
+  async down(): Promise<void> {
+    await this.dropTable('users');
+  }
+}
+```
+
+#### Running Migrations
+
+```typescript
+import { MigrationRunner } from 'js-record';
+
+const runner = new MigrationRunner(adapter);
+
+// Import your migrations
+const migrations = new Map([
+  ['20250111000001_create_users_table', CreateUsersTable],
+  ['20250111000002_create_posts_table', CreatePostsTable],
+]);
+
+// Run all pending migrations
+await runner.up(migrations);
+
+// Rollback last batch
+await runner.rollback(migrations, 1);
+
+// Check migration status
+const statuses = await runner.status(migrations);
+
+// Reset all migrations
+await runner.reset(migrations);
+```
+
+See the [examples/migrations-usage.ts](examples/migrations-usage.ts) for more examples and [CLI documentation](docs/CLI.md) for detailed CLI usage.
+
 ## Project Status
 
 🚧 **Work in Progress** - This library is under active development.

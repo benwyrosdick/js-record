@@ -4,13 +4,18 @@
   "description": "A TypeScript ORM inspired by ActiveRecord for PostgreSQL, SQLite, and (TODO: MySQL) running on Bun",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "js-record": "./dist/bin/js-record.js"
+  },
   "files": [
     "dist",
+    "bin",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "build": "tsc",
+    "postbuild": "chmod +x dist/bin/js-record.js",
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist",
     "prepublishOnly": "bun run clean && bun run build",

@@ -8,7 +8,7 @@
 
     /* Modules */
     "module": "commonjs",
-    "rootDir": "./src",
+    "rootDir": "./",
     "moduleResolution": "node",
     "baseUrl": "./",
     "paths": {
@@ -47,13 +47,6 @@
     /* Completeness */
     "skipLibCheck": true
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.test.ts",
-    "**/*.spec.ts"
-  ]
+  "include": ["src/**/*", "bin/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }
